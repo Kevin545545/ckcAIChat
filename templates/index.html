@@ -1,0 +1,31 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    ckcAI Chat
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mt-5">ckcAI Chat</h1>
+    <form method="POST" action="/query">
+        <div class="mb-3">
+            <label for="query" class="form-label">Please input your questions：</label>
+            <input type="text" class="form-control" id="query" name="query" required>
+        </div>
+        <button type="submit" class="btn btn-primary">submit</button>
+    </form>
+    {% if messages %}
+    <div class="mt-4">
+        <h5>Conversation：</h5>
+        <ul class="list-group">
+            {% for m in messages %}
+            <li class="list-group-item">
+                <strong>You：</strong> {{ m.user }}<br>
+                <strong>AI：</strong> {{ m.ai }}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

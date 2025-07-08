@@ -1,0 +1,20 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    History
+{% endblock %}
+
+{% block content %}
+    <h2>Conversation History</h2>
+    <ul class="list-group">
+        {% for m in messages %}
+            <li class="list-group-item">
+                <strong>You:</strong> {{ m.user }}<br>
+                <strong>AI:</strong> {{ m.ai }}
+            </li>
+        {% endfor %}
+    </ul>
+    {% if not messages %}
+        <p>No conversation history found.</p>
+    {% endif %}
+{% endblock %}
