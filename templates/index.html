@@ -7,10 +7,14 @@
 {% block content %}
 <div class="container">
     <h1 class="mt-5">ckcAI Chat</h1>
-    <form method="POST" action="/query">
+    <form method="POST" action="/query" enctype="multipart/form-data">
         <div class="mb-3">
             <label for="query" class="form-label">Please input your questions：</label>
             <input type="text" class="form-control" id="query" name="query" required>
+        </div>
+        <div class="mb-3">
+            <label for="file" class="form-label">Attach a file (optional):</label>
+            <input type="file" class="form-control" id="file" name="file">
         </div>
         <button type="submit" class="btn btn-primary">submit</button>
     </form>

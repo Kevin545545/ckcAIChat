@@ -48,8 +48,56 @@ def query():
     if not os.getenv("OPENAI_API_KEY"):
         return apology("OpenAI API key not set", 500)
 
-    # Call the helper function to get AI reply and manage memory (no user_id)
-    ai_reply, _ = ai_query(user_input)
+    # Handle file upload
+    client = OpenAI()
+    uploaded_file = request.files.get("file")
+    file_id = None
+    file_name = None
+    if uploaded_file and uploaded_file.filename:
+        # Check file extension (must be .pdf)
+        if not uploaded_file.filename.lower().endswith('.pdf'):
+            return apology("Only PDF files are allowed for upload.", 400)
+        # Create a temp directory under Project if not exists
+        temp_dir = os.path.join(os.path.dirname(__file__), "temp_files")
+        if not os.path.exists(temp_dir):
+            os.makedirs(temp_dir)
+        # Save the uploaded file temporarily in temp_files
+        temp_path = os.path.join(temp_dir, uploaded_file.filename)
+        uploaded_file.save(temp_path)
+        # Upload file to OpenAI
+        file_obj = client.files.create(
+            file=open(temp_path, "rb"),
+            purpose="user_data"
+        )
+        file_id = file_obj.id
+        file_name = uploaded_file.filename
+
+    # If file is uploaded, include it in the input
+    if file_id:
+        input_content = [
+            {
+                "type": "input_file",
+                "file_id": file_id,
+            },
+            {
+                "type": "input_text",
+                "text": user_input,
+            },
+        ]
+        input_payload = [
+            {
+                "role": "user",
+                "content": input_content
+            }
+        ]
+        response = client.responses.create(
+            model="gpt-4.1-nano",
+            input=input_payload
+        )
+        ai_reply = response.output_text
+    else:
+        # Query OpenAI without file
+        ai_reply, _ = ai_query(user_input)
 
     # If error, return apology page
     if ai_reply.startswith("[Error]:"):
