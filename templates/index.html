@@ -21,11 +21,23 @@
             {% for m in messages %}
             <li class="list-group-item">
                 <strong>You：</strong> {{ m.user }}<br>
-                <strong>AI：</strong> {{ m.ai }}
+                <strong>AI：</strong> <div class="ai-md">{{ m.ai | safe }}</div>
             </li>
             {% endfor %}
         </ul>
     </div>
+    <script>
+    function renderMarkdown() {
+        document.querySelectorAll('.ai-md').forEach(function(el){
+            el.innerHTML = marked.parse(el.textContent);
+            el.querySelectorAll('pre code').forEach(function(block){
+                hljs.highlightElement(block);
+            });
+        });
+    }
+    document.addEventListener('DOMContentLoaded', renderMarkdown);
+    window.addEventListener('load', renderMarkdown);
+    </script>
     {% endif %}
 </div>
 {% endblock %}

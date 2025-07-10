@@ -9,6 +9,12 @@
 
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.7/dist/morph/bootstrap.min.css">
         <title>{% block title %}{% endblock %}</title>
+        <!-- Marked.js for Markdown parsing -->
+        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+        <!-- Highlight.js for code syntax highlighting -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github.min.css">
+        <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script>
     </head>
 
 
@@ -32,23 +38,9 @@
                 <li class="nav-item">
                 <a class="nav-link" href="#">Pricing</a>
                 </li>
-                <li class="nav-item">
-                <a class="nav-link" href="/history">History</a>
-                </li>
-                <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">Dropdown</a>
-                <div class="dropdown-menu">
-                    <a class="dropdown-item" href="#">Action</a>
-                    <a class="dropdown-item" href="#">Another action</a>
-                    <a class="dropdown-item" href="#">Something else here</a>
-                    <div class="dropdown-divider"></div>
-                    <a class="dropdown-item" href="#">Separated link</a>
-                </div>
-                </li>
             </ul>
-            <form class="d-flex">
-                <input class="form-control me-sm-2" type="search" placeholder="Search">
-                <button class="btn btn-secondary my-2 my-sm-0" type="submit">Search</button>
+            <form class="d-flex" action="/history" method="get">
+                <button class="btn btn-secondary my-2 my-sm-0" type="submit">History</button>
             </form>
             </div>
         </div>
