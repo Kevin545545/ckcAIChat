@@ -54,29 +54,30 @@ def query():
     file_id = None
     file_name = None
     if uploaded_file and uploaded_file.filename:
-        # Check file extension (must be .pdf)
-        if not uploaded_file.filename.lower().endswith('.pdf'):
-            return apology("Only PDF files are allowed for upload.", 400)
-        # Create a temp directory under Project if not exists
-        temp_dir = os.path.join(os.path.dirname(__file__), "temp_files")
-        if not os.path.exists(temp_dir):
-            os.makedirs(temp_dir)
-        # Save the uploaded file temporarily in temp_files
-        temp_path = os.path.join(temp_dir, uploaded_file.filename)
-        uploaded_file.save(temp_path)
-        # Upload file to OpenAI
+        filename = uploaded_file.filename.lower()
+        # Check file extension (pdf or image)
+        if filename.endswith('.pdf'):
+            file_purpose = "user_data"
+            file_type = "input_file"
+        elif filename.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')):
+            file_purpose = "vision"
+            file_type = "input_image"
+        else:
+            return apology("Only PDF or image files are allowed for upload.", 400)
+        # Upload file to OpenAI directly from memory
         file_obj = client.files.create(
-            file=open(temp_path, "rb"),
-            purpose="user_data"
+            file=(uploaded_file.filename, uploaded_file.stream, uploaded_file.mimetype),
+            purpose=file_purpose
         )
         file_id = file_obj.id
         file_name = uploaded_file.filename
+        file_type_for_input = file_type
 
     # If file is uploaded, include it in the input
     if file_id:
         input_content = [
             {
-                "type": "input_file",
+                "type": file_type_for_input,
                 "file_id": file_id,
             },
             {
@@ -90,11 +91,9 @@ def query():
                 "content": input_content
             }
         ]
-        response = client.responses.create(
-            model="gpt-4.1-nano",
-            input=input_payload
-        )
-        ai_reply = response.output_text
+        ai_reply, _ = ai_query(input_payload)
+        if not ai_reply:
+            return apology("Failed to process file input", 500)
     else:
         # Query OpenAI without file
         ai_reply, _ = ai_query(user_input)

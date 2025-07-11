@@ -13,16 +13,27 @@ def ai_query(user_input):
     """
     Query OpenAI with memory support. Returns (ai_reply, new_response_id).
     Only supports single-user (global memory).
+    user_input can be a string (text) or a list/dict (multi-modal input).
     """
     client = OpenAI()
     previous_response_id = conversation_memory.get('last_response_id')
     try:
+        # Detect if user_input is multimodal (list/dict) or plain text
+        is_multimodal = isinstance(user_input, (list, dict))
         if previous_response_id:
-            response = client.responses.create(
-                model="gpt-4.1-nano",
-                previous_response_id=previous_response_id,
-                input=[{"role": "user", "content": user_input}],
-            )
+            if is_multimodal:
+                # If already a list, just pass it through
+                response = client.responses.create(
+                    model="gpt-4.1-nano",
+                    previous_response_id=previous_response_id,
+                    input=user_input,
+                )
+            else:
+                response = client.responses.create(
+                    model="gpt-4.1-nano",
+                    previous_response_id=previous_response_id,
+                    input=[{"role": "user", "content": user_input}],
+                )
         else:
             response = client.responses.create(
                 model="gpt-4.1-nano",
