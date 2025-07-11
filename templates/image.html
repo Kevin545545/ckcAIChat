@@ -1,0 +1,30 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    ckcAI Image Generation
+{% endblock %}
+
+{% block content %}
+    <h1>Image Generation</h1>
+    <form method="POST" action="/generate_image">
+        <div class="mb-3">
+            <label for="image_prompt" class="form-label">Generate an image (describe what you want):</label>
+            <input type="text" class="form-control" id="image_prompt" name="image_prompt" placeholder="e.g. A cat reading a book" required>
+        </div>
+        <button type="submit" class="btn btn-success">Generate Image</button>
+    </form>
+
+    {% if messages %}
+    <div class="mt-4">
+        <h5>Conversation：</h5>
+        <ul class="list-group">
+            {% for m in messages %}
+            <li class="list-group-item">
+                <strong>You：</strong> {{ m.user }}<br>
+                <strong>AI：</strong> <div class="ai-md">{{ m.ai | safe }}</div>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+{% endblock %}

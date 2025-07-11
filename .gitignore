@@ -9,6 +9,9 @@ __pycache__/
 # Md files
 *.md
 
+# Temp files
+/temp_files/
+
 # Distribution / packaging
 .Python
 build/

@@ -1,3 +1,4 @@
+
 import datetime
 import os
 
@@ -7,7 +8,7 @@ from flask_session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
 from openai import OpenAI
 
-from helpers import apology, ai_query
+from helpers import apology, ai_query, image_generate
 
 # Configure application
 app = Flask(__name__)
@@ -16,6 +17,12 @@ app = Flask(__name__)
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
+
+# In-memory conversation history for each session (for demo, not production)
+conversation_memory = {}
+
+# Store last image response id for multi-turn image generation
+image_memory = {}
 
 @app.after_request
 def after_request(response):
@@ -29,10 +36,6 @@ def after_request(response):
 @app.route("/", methods=["GET"])
 def index():
     return render_template("index.html", messages=None)
-
-
-# In-memory conversation history for each session (for demo, not production)
-conversation_memory = {}
 
 # Handle chat requests
 @app.route("/query", methods=["POST"])
@@ -110,9 +113,37 @@ def query():
     messages.append({"user": user_input, "ai": ai_reply})
     return render_template("index.html", messages=messages)
 
+@app.route("/generate_image", methods=["POST", "GET"])
+def generate_image():
+
+    if request.method == "GET":
+        return render_template("image.html")
+
+    prompt = request.form.get("image_prompt")
+    if not prompt:
+        return apology("No prompt provided", 400)
+    prev_id = image_memory.get("last_image_response_id")
+    file_path, filename, response_id = image_generate(prompt, previous_response_id=prev_id)
+    if not file_path:
+        return apology("Image generation failed", 500)
+    # Save last image response id for follow-up
+    image_memory["last_image_response_id"] = response_id
+    # Append the new image message to the full conversation history
+    history_msgs = conversation_memory.get('messages', [])
+    history_msgs.append({"user": prompt, "ai": f'<img src="/temp_files/{filename}" alt="generated image" style="max-width:400px;">' })
+    conversation_memory['messages'] = history_msgs
+    return render_template("image.html", messages=history_msgs)
+
+@app.route("/temp_files/<filename>")
+def serve_temp_file(filename):
+    """Serve files from the temp_files directory."""
+    from flask import send_from_directory
+    temp_dir = os.path.join(os.path.dirname(__file__), "temp_files")
+    return send_from_directory(temp_dir, filename)
+
 @app.route("/history", methods=["GET"])
 def history():
-    """Display conversation history (single user)."""
+    """Display conversation history (single user), including image messages."""
     messages = conversation_memory.get('messages', [])
-
+    # Ensure image messages are included (already appended in generate_image)
     return render_template("history.html", messages=messages)

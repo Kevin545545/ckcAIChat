@@ -3,6 +3,7 @@ from functools import wraps
 from openai import OpenAI
 import requests
 
+import base64
 import os
 
 # Save the last response ID
@@ -46,7 +47,34 @@ def ai_query(user_input):
     except Exception as e:
         return f"[Error]: {e}", None
 
-
+def image_generate(prompt, previous_response_id=None):
+    """
+    Generate an image using OpenAI Responses API, save to temp_files, return file path and base64.
+    """
+    client = OpenAI()
+    # Ensure temp_files dir exists
+    temp_dir = os.path.join(os.path.dirname(__file__), "temp_files")
+    if not os.path.exists(temp_dir):
+        os.makedirs(temp_dir)
+    # Prepare API call
+    kwargs = {
+        "model": "gpt-4.1-nano",
+        "input": prompt,
+        "tools": [{"type": "image_generation", "quality": "low", "moderation": "low"}],
+    }
+    if previous_response_id:
+        kwargs["previous_response_id"] = previous_response_id
+    response = client.responses.create(**kwargs)
+    image_data = [output.result for output in response.output if output.type == "image_generation_call"]
+    if image_data:
+        image_base64 = image_data[0]
+        # Save image to temp_files
+        filename = f"generated_{response.id}.png"
+        file_path = os.path.join(temp_dir, filename)
+        with open(file_path, "wb") as f:
+            f.write(base64.b64decode(image_base64))
+        return file_path, filename, response.id
+    return None, None, response.id
 
 def apology(message, code=400):
     """Render message as an apology to user."""
