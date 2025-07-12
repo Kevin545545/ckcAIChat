@@ -10,12 +10,17 @@
     <form method="POST" action="/query" enctype="multipart/form-data">
         <div class="mb-3">
             <label for="query" class="form-label">Please input your questions：</label>
-            <input type="text" class="form-control" id="query" name="query" required>
+            <textarea class="form-control" id="query" name="query" rows="4" required></textarea>
         </div>
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="web_search" name="web_search">
+            <label class="form-check-label" for="web_search">Enable Web Search (gpt-4o-mini)</label>
+        </div>        
         <div class="mb-3">
             <label for="file" class="form-label">Attach a file(.pdf) or image (optional):</label>
             <input type="file" class="form-control" id="file" name="file">
         </div>
+
         <button type="submit" class="btn btn-primary">submit</button>
     </form>
     {% if messages %}

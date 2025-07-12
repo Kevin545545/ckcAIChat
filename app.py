@@ -1,7 +1,3 @@
-
-import datetime
-import os
-
 from cs50 import SQL
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from flask_session import Session
@@ -9,6 +5,9 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from openai import OpenAI
 
 from helpers import apology, ai_query, image_generate
+
+import datetime
+import os
 
 # Configure application
 app = Flask(__name__)
@@ -50,6 +49,9 @@ def query():
     # Check for OpenAI API key before querying
     if not os.getenv("OPENAI_API_KEY"):
         return apology("OpenAI API key not set", 500)
+
+    # Web search option
+    web_search = request.form.get("web_search") == "on"
 
     # Handle file upload
     client = OpenAI()
@@ -94,12 +96,12 @@ def query():
                 "content": input_content
             }
         ]
-        ai_reply, _ = ai_query(input_payload)
+        ai_reply, _ = ai_query(input_payload, web_search=web_search)
         if not ai_reply:
             return apology("Failed to process file input", 500)
     else:
         # Query OpenAI without file
-        ai_reply, _ = ai_query(user_input)
+        ai_reply, _ = ai_query(user_input, web_search=web_search)
 
     # If error, return apology page
     if ai_reply.startswith("[Error]:"):
@@ -132,7 +134,10 @@ def generate_image():
     history_msgs = conversation_memory.get('messages', [])
     history_msgs.append({"user": prompt, "ai": f'<img src="/temp_files/{filename}" alt="generated image" style="max-width:400px;">' })
     conversation_memory['messages'] = history_msgs
-    return render_template("image.html", messages=history_msgs)
+
+    # Only show image messages in the image page
+    image_msgs = [msg for msg in history_msgs if '<img' in msg.get('ai', '')]
+    return render_template("image.html", messages=image_msgs)
 
 @app.route("/temp_files/<filename>")
 def serve_temp_file(filename):

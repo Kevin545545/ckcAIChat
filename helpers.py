@@ -10,36 +10,37 @@ import os
 conversation_memory = {}
 
 
-def ai_query(user_input):
+def ai_query(user_input, web_search=False):
     """
     Query OpenAI with memory support. Returns (ai_reply, new_response_id).
     Only supports single-user (global memory).
     user_input can be a string (text) or a list/dict (multi-modal input).
+    web_search: if True, uses web search tools.
     """
     client = OpenAI()
     previous_response_id = conversation_memory.get('last_response_id')
     try:
         # Detect if user_input is multimodal (list/dict) or plain text
         is_multimodal = isinstance(user_input, (list, dict))
-        if previous_response_id:
-            if is_multimodal:
-                # If already a list, just pass it through
-                response = client.responses.create(
-                    model="gpt-4.1-nano",
-                    previous_response_id=previous_response_id,
-                    input=user_input,
-                )
-            else:
-                response = client.responses.create(
-                    model="gpt-4.1-nano",
-                    previous_response_id=previous_response_id,
-                    input=[{"role": "user", "content": user_input}],
-                )
+        # Decide model/tools
+        if web_search:
+            model = "gpt-4o-mini"
+            tools = [{"type": "web_search_preview"}]
         else:
-            response = client.responses.create(
-                model="gpt-4.1-nano",
-                input=user_input,
-            )
+            model = "gpt-4.1-nano"
+            tools = None
+        create_kwargs = {"model": model}
+        if tools:
+            create_kwargs["tools"] = tools
+        if previous_response_id:
+            create_kwargs["previous_response_id"] = previous_response_id
+            if is_multimodal:
+                create_kwargs["input"] = user_input
+            else:
+                create_kwargs["input"] = [{"role": "user", "content": user_input}]
+        else:
+            create_kwargs["input"] = user_input
+        response = client.responses.create(**create_kwargs)
         ai_reply = response.output_text
         # Save last response id for memory
         conversation_memory['last_response_id'] = response.id
