@@ -125,9 +125,13 @@ def generate_image():
     if not prompt:
         return apology("No prompt provided", 400)
     prev_id = image_memory.get("last_image_response_id")
-    file_path, filename, response_id = image_generate(prompt, previous_response_id=prev_id)
-    if not file_path:
-        return apology("Image generation failed", 500)
+    try:
+        # Generate image using OpenAI Responses API
+        file_path, filename, response_id = image_generate(prompt, previous_response_id=prev_id)
+        if not file_path:
+            return apology("Image generation failed", 500)
+    except Exception as e:
+        return apology(f"Image generation failed: {str(e)}", 500)
     # Save last image response id for follow-up
     image_memory["last_image_response_id"] = response_id
     # Append the new image message to the full conversation history

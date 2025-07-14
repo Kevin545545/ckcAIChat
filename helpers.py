@@ -1,6 +1,7 @@
 from flask import redirect, render_template, session
 from functools import wraps
 from openai import OpenAI
+from markdown import markdown as md
 import requests
 
 import base64
@@ -41,7 +42,12 @@ def ai_query(user_input, web_search=False):
         else:
             create_kwargs["input"] = user_input
         response = client.responses.create(**create_kwargs)
-        ai_reply = response.output_text
+        # Return AI reply
+        raw = response.output_text
+        ai_reply = md(
+            raw,
+            extensions=["fenced_code", "codehilite"]
+        )
         # Save last response id for memory
         conversation_memory['last_response_id'] = response.id
         return ai_reply, response.id

@@ -5,36 +5,18 @@
 {% endblock %}
 
 {% block content %}
-    <h2>Conversation History</h2>
-    <ul class="list-group">
-        {% for m in messages %}
-            <li class="list-group-item">
-                <strong>You:</strong> {{ m.user }}<br>
-                <strong>AI:</strong>
-                {% if m.ai.strip().startswith('<img') %}
-                    <div class="ai-md">{{ m.ai | safe }}</div>
-                {% else %}
-                    <div class="ai-md">{{ m.ai | e }}</div>
-                {% endif %}
-            </li>
-        {% endfor %}
-    </ul>
-    {% if not messages %}
-        <p>No conversation history found.</p>
-    {% endif %}
-    <script>
-    function renderMarkdown() {
-        document.querySelectorAll('.ai-md').forEach(function(el){
-            // 只渲染非图片内容
-            if (!el.innerHTML.trim().startsWith('<img')) {
-                el.innerHTML = marked.parse(el.innerText);
-                el.querySelectorAll('pre code').forEach(function(block){
-                    hljs.highlightElement(block);
-                });
-            }
-        });
-    }
-    document.addEventListener('DOMContentLoaded', renderMarkdown);
-    window.addEventListener('load', renderMarkdown);
-    </script>
+  <h2>Conversation History</h2>
+  <ul class="list-group">
+    {% for m in messages %}
+      <li class="list-group-item">
+          <div><strong>You:</strong> {{ m.user }}</div>
+          <div><strong>AI:</strong></div>
+          <div class="ai-md">{{ m.ai | safe }}</div>
+      </li>
+    {% endfor %}
+  </ul>
+
+  {% if not messages %}
+    <p>No conversation history found.</p>
+  {% endif %}
 {% endblock %}
