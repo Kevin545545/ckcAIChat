@@ -17,7 +17,7 @@ app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
-# In-memory conversation history for each session (for demo, not production)
+# In-memory conversation history stored globally for a single user/demo session
 conversation_memory = {}
 
 # Store last image response id for multi-turn image generation
