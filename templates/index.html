@@ -14,7 +14,7 @@
         </div>
         <div class="form-check mb-3">
             <input class="form-check-input" type="checkbox" id="web_search" name="web_search">
-            <label class="form-check-label" for="web_search">Enable Web Search (gpt-4o-mini)</label>
+            <label class="form-check-label" for="web_search">Enable Web Search</label>
         </div>        
         <div class="mb-3">
             <label for="file" class="form-label">Attach a file(.pdf) or image (optional):</label>
@@ -30,7 +30,7 @@
             {% for m in messages %}
             <li class="list-group-item">
                 <strong>You：</strong> {{ m.user }}<br>
-                <strong>AI：</strong> <div class="ai-md">{{ m.ai | safe }}</div>
+                <strong>James Cao：</strong> <div class="ai-md">{{ m.ai | safe }}</div>
             </li>
             {% endfor %}
         </ul>

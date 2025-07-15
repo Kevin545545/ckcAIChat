@@ -1,0 +1,48 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Code Interpreter
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Code Interpreter</h2>
+    <p>适合提问：代码调试、数据分析、数学计算、文件处理等。支持上传 csv、pdf、图片等文件，AI 可自动分析并生成新文件。</p>
+    <form method="POST" enctype="multipart/form-data">
+        <div class="mb-3">
+            <label for="ci_query" class="form-label">Your question or task:</label>
+            <textarea class="form-control" id="ci_query" name="ci_query" rows="4" required></textarea>
+        </div>
+        <div class="mb-3">
+            <label for="ci_file" class="form-label">Upload a file (optional):</label>
+            <input type="file" class="form-control" id="ci_file" name="ci_file">
+        </div>
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+    {% if messages %}
+    <div class="mt-4">
+        <h5>Conversation:</h5>
+        <ul class="list-group">
+            {% for m in messages %}
+            <li class="list-group-item">
+                <strong>You:</strong> {{ m.user }}<br>
+                <strong>James Cao:</strong> <div class="ai-md">{{ m.ai | safe }}</div>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    {% if generated_files %}
+    <div class="mt-4">
+        <h5>Generated Files:</h5>
+        <ul>
+            {% for f in generated_files %}
+            <li>
+                <a href="{{ url_for('download_ci_file', container_id=f.container_id, file_id=f.file_id, filename=f.filename) }}" target="_blank">{{ f.filename }}</a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

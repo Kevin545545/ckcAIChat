@@ -10,6 +10,8 @@ import os
 # Save the last response ID
 conversation_memory = {}
 
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+HEADERS = {"Authorization": f"Bearer {OPENAI_API_KEY}"}
 
 def ai_query(user_input, web_search=False):
     """
@@ -106,3 +108,106 @@ def apology(message, code=400):
         return s
 
     return render_template("apology.html", top=code, bottom=escape(message)), code
+
+def get_fresh_container():
+    # 如果 session 里存了 ID，优先试试它
+    print("🔍 session contents:", session) 
+    cid = session.get("ci_container_id")
+    if cid:
+        # 测试一下这个容器是否还活着
+        print("🔍 found ci_container_id in session:", cid)
+        try:
+            # 这里用 List files 端点来“探活”，如果 404 就会抛
+            resp = requests.get(
+                f"https://api.openai.com/v1/containers/{cid}/files",
+                headers={"Authorization": f"Bearer {OPENAI_API_KEY}"},
+            )
+            if resp.status_code == 200:
+                return cid
+        except requests.HTTPError as e:
+            if e.response.status_code != 404:
+                raise
+        # 已过期或不存在，删除旧 ID
+        session.pop("ci_container_id", None)
+
+    print("🔍 no ci_container_id in session, creating new one")
+    # 没有有效的 cid，就新建一个
+    resp = requests.post(
+        "https://api.openai.com/v1/containers",
+        headers={"Authorization": f"Bearer {OPENAI_API_KEY}"},
+        json={"name": "ci-session"}
+    )
+    resp.raise_for_status()
+    cid = resp.json()["id"]
+    session["ci_container_id"] = cid
+    print("🔍 saved new ci_container_id to session:", cid)
+    return cid
+
+
+
+def upload_to_container(container_id, uploaded_file):
+    """直接往容器里上传用户文件"""
+    url = f"https://api.openai.com/v1/containers/{container_id}/files"
+    # multipart/form-data 上传
+    files = {"file": (uploaded_file.filename, uploaded_file.stream, uploaded_file.mimetype)}
+    resp = requests.post(url, headers={"Authorization": f"Bearer {OPENAI_API_KEY}"}, files=files)
+    resp.raise_for_status()
+    return resp.json()["id"]  # 返回 cfile_xxx
+
+
+def code_interpreter_query(user_input, uploaded_file=None, previous_response_id=None):
+    client = OpenAI()
+    cid = get_fresh_container()
+
+    if uploaded_file:
+        upload_to_container(cid, uploaded_file)
+
+    # 调用 Responses API，引用显式容器
+    create_kwargs = {
+        "model": "gpt-4.1-nano",
+        "tools": [{"type": "code_interpreter", "container": cid}],
+        "tool_choice": "required",
+        "input": user_input,
+    }
+    if previous_response_id:
+        create_kwargs["previous_response_id"] = previous_response_id
+    try:
+        response = client.responses.create(**create_kwargs)
+    except Exception as e:
+        return apology(f"failed to query code interpreter: {str(e)}", 500)
+
+    # 提取文本回复和所有生成的文件
+    output_text = ""
+    generated_files = []
+    for output in response.output:
+        # 1. 普通 message 里的文本和注释
+        if output.type == "message":
+            for c in output.content:
+                if getattr(c, "type", None) == "output_text":
+                    output_text += getattr(c, "text", "")
+                if hasattr(c, "annotations"):
+                    for ann in c.annotations:
+                        if getattr(ann, "type", None) == "container_file_citation":
+                            generated_files.append({
+                                "container_id": getattr(ann, "container_id", ""),
+                                "file_id": getattr(ann, "file_id", ""),
+                                "filename": getattr(ann, "filename", getattr(ann, "file_id", ""))
+                            })
+        # 2. code_interpreter_call 里直接生成的文件
+        if output.type == "code_interpreter_call":
+            # 兼容多种文件类型字段
+            file_fields = [k for k in vars(output) if k.endswith('_path') and getattr(output, k)]
+            for field in file_fields:
+                file_path = getattr(output, field)
+                # 解析 container_id 和文件名
+                container_id = getattr(output, 'container_id', '')
+                # file_id 可能无法直接获得，先用文件名代替
+                filename = os.path.basename(file_path)
+                # file_id 可能在 path 里，尝试提取
+                file_id = filename
+                generated_files.append({
+                    "container_id": container_id,
+                    "file_id": file_id,
+                    "filename": filename
+                })
+    return output_text, generated_files, getattr(response, "id", None)

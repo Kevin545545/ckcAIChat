@@ -1,13 +1,15 @@
 from cs50 import SQL
-from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask import Flask, flash, redirect, render_template, request, session, url_for, send_file
 from flask_session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
 from openai import OpenAI
 
-from helpers import apology, ai_query, image_generate
+from helpers import apology, ai_query, image_generate, code_interpreter_query
 
 import datetime
 import os
+import requests
+from io import BytesIO
 
 # Configure application
 app = Flask(__name__)
@@ -22,6 +24,9 @@ conversation_memory = {}
 
 # Store last image response id for multi-turn image generation
 image_memory = {}
+
+# Load OpenAI API key from environment variable
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 @app.after_request
 def after_request(response):
@@ -156,3 +161,45 @@ def history():
     messages = conversation_memory.get('messages', [])
     # Ensure image messages are included (already appended in generate_image)
     return render_template("history.html", messages=messages)
+
+@app.route("/code_interpreter", methods=["GET", "POST"])
+def code_interpreter():
+    messages = []
+    generated_files = []
+    if request.method == "POST":
+        user_input = request.form.get("ci_query")
+        uploaded_file = request.files.get("ci_file")
+        prev_id = session.get("ci_last_response_id")
+        
+        try:
+            output_text, files, response_id = code_interpreter_query(user_input, uploaded_file, previous_response_id=prev_id)
+        except Exception as e:
+            return apology(f"Code interpreter query failed: {str(e)}", 500)
+        print(f"测试到底有没有文件：{files}")
+        session["ci_last_response_id"] = response_id
+
+        # --- Save conversation to memory for history page ---
+        history_msgs = conversation_memory.get('messages', [])
+        history_msgs.append({"user": user_input, "ai": output_text})
+        conversation_memory['messages'] = history_msgs
+        messages.append({"user": user_input, "ai": output_text})
+        generated_files = files
+    return render_template("code_interpreter.html", messages=messages, generated_files=generated_files)
+
+@app.route("/download_ci_file/<container_id>/<file_id>/<filename>")
+def download_ci_file(container_id, file_id, filename):
+    client = OpenAI()
+    try:
+        url = f"https://api.openai.com/v1/containers/{container_id}/files/{file_id}/content"
+        headers = {"Authorization": f"Bearer {OPENAI_API_KEY}"}
+
+        resp = requests.get(url, headers=headers)
+        if resp.status_code == 200:
+            return send_file(
+                BytesIO(resp.content),
+                as_attachment=True,
+                download_name=filename,
+                mimetype="application/octet-stream"
+            )
+    except Exception as e:
+        return apology(f"Failed to download file: {str(e)}", 500)
