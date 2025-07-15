@@ -146,13 +146,26 @@ def get_fresh_container():
 
 
 def upload_to_container(container_id, uploaded_file):
-    """直接往容器里上传用户文件"""
+    # ── 第一步：走 Files API，先把用户文件注册为一个“File”对象
+    client = OpenAI()
+    file_obj = client.files.create(
+        file=(uploaded_file.filename, uploaded_file.stream, uploaded_file.mimetype),
+        purpose="user_data"
+    )
+    file_id = file_obj.id
+
+    # ── 第二步：用 JSON 把它挂到容器
     url = f"https://api.openai.com/v1/containers/{container_id}/files"
-    # multipart/form-data 上传
-    files = {"file": (uploaded_file.filename, uploaded_file.stream, uploaded_file.mimetype)}
-    resp = requests.post(url, headers={"Authorization": f"Bearer {OPENAI_API_KEY}"}, files=files)
+    resp = requests.post(
+        url,
+        headers={
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "Content-Type": "application/json"
+        },
+        json={"file_id": file_id}
+    )
     resp.raise_for_status()
-    return resp.json()["id"]  # 返回 cfile_xxx
+    return resp.json()["id"]  # 返回 container_file_id
 
 
 def code_interpreter_query(user_input, uploaded_file=None, previous_response_id=None):

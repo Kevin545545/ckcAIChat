@@ -170,11 +170,11 @@ def code_interpreter():
         user_input = request.form.get("ci_query")
         uploaded_file = request.files.get("ci_file")
         prev_id = session.get("ci_last_response_id")
-        
+
         try:
             output_text, files, response_id = code_interpreter_query(user_input, uploaded_file, previous_response_id=prev_id)
         except Exception as e:
-            return apology(f"Code interpreter query failed: {str(e)}", 500)
+            return apology(f"Code interpreter query failed: {str(e)[:50]}", 500)
         print(f"测试到底有没有文件：{files}")
         session["ci_last_response_id"] = response_id
 
