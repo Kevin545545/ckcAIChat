@@ -71,17 +71,19 @@ document.getElementById('query-form').addEventListener('submit', function(e) {
     const output = document.getElementById(outputId);
     const source = new EventSource(`/stream_query?query=${encodeURIComponent(query)}&web_search=${webSearch}&reasoning=${reasoning}`);
     source.onmessage = function(e) {
-        if (e.data.startsWith('DONE:')) {
+        if (e.data === 'DONE:') {
             source.close();
-            renderMarkdown();
+            document.querySelectorAll('pre code').forEach(block => {
+                hljs.highlightElement(block);
+            });
         } else {
             output.textContent += e.data;
+            output.innerHTML = marked.parse(output.textContent);
         }
     };
     source.onerror = function() {
         source.close();
     };
-
 });
 </script>
 {% endblock %}

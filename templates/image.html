@@ -43,14 +43,13 @@ document.getElementById('image-form').addEventListener('submit', function(e) {
     const output = document.getElementById(outputId);
     const source = new EventSource(`/stream_generate_image?prompt=${encodeURIComponent(prompt)}`);
     source.onmessage = function(e) {
-        if (e.data.startsWith('img:')) {
-            const b64 = e.data.replace('img:', '');
-            const img = document.createElement('img');
-            img.src = 'data:image/png;base64,' + b64;
+        if (e.data === 'DONE:') {
+            source.close();
+        } else if (e.data.startsWith('data:image/')) {
+            const img = new Image();
+            img.src = e.data;
             img.style.maxWidth = '400px';
             output.appendChild(img);
-        } else if (e.data.startsWith('DONE:')) {
-            source.close();
         }
     };
     source.onerror = function() {

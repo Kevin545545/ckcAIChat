@@ -144,9 +144,16 @@ def stream_query():
 
     def generate():
         for chunk in ai_query_stream(user_input, web_search=web_search, reasoning=reasoning):
+            print(repr(chunk))
             yield f"data: {chunk}\n\n"
 
-    return Response(stream_with_context(generate()), mimetype="text/event-stream")
+    headers = {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive"
+    }
+    return Response(stream_with_context(generate()), headers=headers)
+
 
 @app.route("/generate_image", methods=["POST", "GET"])
 def generate_image():
@@ -187,12 +194,16 @@ def stream_generate_image():
 
     def generate():
         for chunk in image_generate_stream(prompt, previous_response_id=prev_id):
-            if isinstance(chunk, str) and chunk.startswith("DONE:"):
-                image_memory["last_image_response_id"] = chunk.split(":", 1)[1]
-            else:
-                yield f"data: img:{chunk}\n\n"
+            print(repr(chunk))
+            yield f"data: {chunk}\n\n"
 
-    return Response(stream_with_context(generate()), mimetype="text/event-stream")
+    headers = {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive"
+    }
+    return Response(stream_with_context(generate()), headers=headers)
+
 
 @app.route("/temp_files/<filename>")
 def serve_temp_file(filename):

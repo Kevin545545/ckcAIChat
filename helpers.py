@@ -164,7 +164,8 @@ def ai_query_stream(user_input, web_search=False, reasoning=False, max_output_to
             yield getattr(event, "text", "")
         elif event_type == "response.completed":
             conversation_memory['last_response_id'] = getattr(event, "id", None)
-            yield "DONE:" + getattr(event, "id", "")
+            yield "DONE:"
+
 
 def image_generate_stream(prompt, previous_response_id=None, partial_images=2):
     """Stream image generation partials as base64 strings."""
@@ -183,10 +184,10 @@ def image_generate_stream(prompt, previous_response_id=None, partial_images=2):
     for event in stream:
         event_type = getattr(event, "type", "")
         if event_type == "response.image_generation_call.partial_image":
-            yield getattr(event, "partial_image_b64", "")
+            yield "data:image/png;base64," + getattr(event, "partial_image_b64", "")
         elif event_type == "response.completed":
-            # The caller can store this ID if needed
-            yield "DONE:" + getattr(event, "id", "")
+            conversation_memory['last_response_id'] = getattr(event, "id", None)
+            yield "DONE:"
 
 def apology(message, code=400):
     """Render message as an apology to user."""
