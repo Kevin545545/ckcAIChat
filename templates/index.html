@@ -7,7 +7,7 @@
 {% block content %}
 <div class="container">
     <h1 class="mt-5">ckcAI Chat</h1>
-    <form method="POST" action="/query" enctype="multipart/form-data">
+    <form id="query-form" method="POST" action="/query" enctype="multipart/form-data">
         <div class="mb-3">
             <label for="query" class="form-label">Please input your questions：</label>
             <textarea class="form-control" id="query" name="query" rows="4" required></textarea>
@@ -52,4 +52,34 @@
     </script>
     {% endif %}
 </div>
+<script>
+document.getElementById('query-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const form = e.target;
+    const query = document.getElementById('query').value;
+    const webSearch = document.getElementById('web_search').checked ? '1' : '0';
+    const reasoning = document.getElementById('reasoning').checked ? '1' : '0';
+    const chat = document.querySelector('.chat-container') || document.createElement('div');
+    if (!chat.classList.contains('chat-container')) {
+        chat.className = 'chat-container mt-4';
+        form.insertAdjacentElement('afterend', chat);
+    }
+    const outputId = 'stream-output-' + Date.now();
+    chat.insertAdjacentHTML('beforeend', `<div class="chat-message user"><div class="message">${query}</div></div><div class="chat-message assistant"><div class="message"><div class="ai-md" id="${outputId}"></div></div></div>`);
+
+    const output = document.getElementById(outputId);
+    const source = new EventSource(`/stream_query?query=${encodeURIComponent(query)}&web_search=${webSearch}&reasoning=${reasoning}`);
+    source.onmessage = function(e) {
+        if (e.data.startsWith('DONE:')) {
+            source.close();
+            renderMarkdown();
+        } else {
+            output.textContent += e.data;
+        }
+    };
+    source.onerror = function() {
+        source.close();
+    };
+});
+</script>
 {% endblock %}
