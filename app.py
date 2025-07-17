@@ -1,25 +1,37 @@
 from cs50 import SQL
-from flask import Flask, flash, redirect, render_template, request, session, url_for, send_file
+from flask import Flask, flash, redirect, render_template, request, session, url_for, send_file, Response, stream_with_context
 from flask_session import Session
+from flask_cors import CORS
 from werkzeug.security import check_password_hash, generate_password_hash
 from openai import OpenAI
 
-from helpers import apology, ai_query, image_generate, code_interpreter_query
+from helpers import (
+    apology,
+    ai_query,
+    image_generate,
+    code_interpreter_query,
+    ai_query_stream,
+    image_generate_stream,
+)
+from markdown import markdown as md  # STREAMING MOD END
 
 import datetime
 import os
 import requests
+import base64
 from io import BytesIO
 
 # Configure application
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET")
 
 # Configure session to use filesystem (instead of signed cookies)
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
+CORS(app, supports_credentials=True)
 
-# In-memory conversation history stored globally for a single user/demo session
+# In-memory conversation history for chat
 conversation_memory = {}
 
 # Store last image response id for multi-turn image generation
@@ -102,16 +114,24 @@ def query():
                 "content": input_content
             }
         ]
-        ai_reply, summaries, _ = ai_query(input_payload, web_search=web_search, reasoning=reasoning)
+        ai_reply, ai_raw, summaries, _ = ai_query(
+            input_payload, web_search=web_search, reasoning=reasoning
+        )
         if summaries:
-            ai_reply = "<em>Reasoning Summary:</em> " + " ".join(summaries) + "<br>" + ai_reply
+            ai_reply = (
+                "<em>Reasoning Summary:</em> " + " ".join(summaries) + "<br>" + ai_reply
+            )
         if not ai_reply:
             return apology("Failed to process file input", 500)
     else:
         # Query OpenAI without file
-        ai_reply, summaries, _ = ai_query(user_input, web_search=web_search, reasoning=reasoning)
+        ai_reply, ai_raw, summaries, _ = ai_query(
+            user_input, web_search=web_search, reasoning=reasoning
+        )
         if summaries:
-            ai_reply = "<em>Reasoning Summary:</em> " + " ".join(summaries) + "<br>" + ai_reply
+            ai_reply = (
+                "<em>Reasoning Summary:</em> " + " ".join(summaries) + "<br>" + ai_reply
+            )
 
     # If error, return apology page
     if ai_reply.startswith("[Error]:"):
@@ -119,11 +139,62 @@ def query():
 
     # --- Save conversation to memory for history page ---
     history_msgs = conversation_memory.get('messages', [])
-    history_msgs.append({"user": user_input, "ai": ai_reply})
+    history_msgs.append({"user": user_input, "ai": ai_reply, "ai_raw": ai_raw})
     conversation_memory['messages'] = history_msgs
 
     messages.append({"user": user_input, "ai": ai_reply})
     return render_template("index.html", messages=messages)
+
+
+@app.route("/stream_query", methods=["POST"])
+def stream_query():
+    """Stream chat responses via server-sent events."""
+    user_input = request.form.get("query")
+    if not user_input:
+        return "Missing query", 400
+
+    web_search = request.form.get("web_search") == "on"
+    reasoning = request.form.get("reasoning") == "on"
+    uploaded_file = request.files.get("file")
+
+    # Fallback to synchronous query when tools or files are used
+    if web_search or reasoning or (uploaded_file and uploaded_file.filename):
+        rendered = query()
+        resp = rendered[0] if isinstance(rendered, tuple) else rendered
+        data = resp.get_data(as_text=True)
+
+        def gen_sync():
+            yield f"data: {data}\n\n"
+            yield "data: [DONE]\n\n"
+
+        headers = {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+        return Response(stream_with_context(gen_sync()), headers=headers)
+
+    history_msgs = conversation_memory.get("messages", [])
+
+    def generate():
+        collected = ""
+        for chunk in ai_query_stream(user_input, history=history_msgs):
+            print(repr(chunk))
+            if chunk == "[DONE]":
+                html = md(collected, extensions=["fenced_code", "codehilite"])
+                history_msgs.append({"user": user_input, "ai": html, "ai_raw": collected})
+                conversation_memory["messages"] = history_msgs
+            else:
+                collected += chunk
+            yield f"data: {chunk}\n\n"
+
+    headers = {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+    }
+    return Response(stream_with_context(generate()), headers=headers)
+# STREAMING MOD END
 
 @app.route("/generate_image", methods=["POST", "GET"])
 def generate_image():
@@ -152,6 +223,40 @@ def generate_image():
     # Only show image messages in the image page
     image_msgs = [msg for msg in history_msgs if '<img' in msg.get('ai', '')]
     return render_template("image.html", messages=image_msgs)
+
+
+@app.route("/stream_generate_image")
+def stream_generate_image():
+    """Stream image generation via server-sent events."""
+    prompt = request.args.get("prompt")
+    if not prompt:
+        return "Missing prompt", 400
+    def generate():
+        gen = image_generate_stream(prompt)
+        last_b64 = None
+        for chunk in gen:
+            print(repr(chunk))
+            if chunk.startswith("data:image/"):
+                last_b64 = chunk.split(",", 1)[1]
+            yield f"data: {chunk}\n\n"
+        if last_b64:
+            temp_dir = os.path.join(os.path.dirname(__file__), "temp_files")
+            os.makedirs(temp_dir, exist_ok=True)
+            filename = f"generated_{int(datetime.datetime.now().timestamp())}.png"
+            file_path = os.path.join(temp_dir, filename)
+            with open(file_path, "wb") as f:
+                f.write(base64.b64decode(last_b64))
+            history_msgs = conversation_memory.get('messages', [])
+            history_msgs.append({"user": prompt, "ai": f'<img src="/temp_files/{filename}" alt="generated image" style="max-width:400px;">'})
+            conversation_memory['messages'] = history_msgs
+            yield "data: [DONE]\n\n"
+
+    headers = {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive"
+    }
+    return Response(stream_with_context(generate()), headers=headers)
 
 @app.route("/temp_files/<filename>")
 def serve_temp_file(filename):

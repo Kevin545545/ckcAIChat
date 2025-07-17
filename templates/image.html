@@ -6,7 +6,7 @@
 
 {% block content %}
     <h1>Image Generation</h1>
-    <form method="POST" action="/generate_image">
+    <form id="image-form" method="POST" action="/generate_image">
         <div class="mb-3">
             <label for="image_prompt" class="form-label">Generate &amp; Refine Image (iterative edits supported):</label>
             <input type="text" class="form-control" id="image_prompt" name="image_prompt" placeholder="e.g. A cat reading a book" required>
@@ -27,3 +27,33 @@
     </div>
     {% endif %}
 {% endblock %}
+<script>
+document.getElementById('image-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const form = e.target;
+    const prompt = document.getElementById('image_prompt').value;
+    const chat = document.querySelector('.chat-container') || document.createElement('div');
+    if (!chat.classList.contains('chat-container')) {
+        chat.className = 'chat-container mt-4';
+        form.insertAdjacentElement('afterend', chat);
+    }
+    const outputId = 'img-output-' + Date.now();
+    chat.insertAdjacentHTML('beforeend', `<div class="chat-message user"><div class="message">${prompt}</div></div><div class="chat-message assistant"><div class="message" id="${outputId}"></div></div>`);
+
+    const output = document.getElementById(outputId);
+    const source = new EventSource(`/stream_generate_image?prompt=${encodeURIComponent(prompt)}`);
+    source.onmessage = function(e) {
+        if (e.data === '[DONE]') {
+            source.close();
+        } else if (e.data.startsWith('data:image/')) {
+            const img = new Image();
+            img.src = e.data;
+            img.style.maxWidth = '400px';
+            output.appendChild(img);
+        }
+    };
+    source.onerror = function() {
+        source.close();
+    };
+});
+</script>

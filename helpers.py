@@ -79,7 +79,7 @@ def ai_query(user_input, web_search=False, reasoning=False, max_output_tokens=40
                         summaries.append(getattr(s, "text", ""))
         # Save last response id for memory
         conversation_memory['last_response_id'] = response.id
-        return ai_reply, summaries, response.id
+        return ai_reply, raw, summaries, response.id
     except Exception as e:
         return f"[Error]: {e}", [], None
 
@@ -111,6 +111,58 @@ def image_generate(prompt, previous_response_id=None):
             f.write(base64.b64decode(image_base64))
         return file_path, filename, response.id
     return None, None, response.id
+
+def ai_query_stream(user_input, history=None):
+    """Stream reply text using Chat Completions."""
+    client = OpenAI()
+
+    messages = []
+    if history:
+        for item in history:
+            messages.append({"role": "user", "content": item.get("user", "")})
+            ai_raw = item.get("ai_raw") or item.get("ai", "")
+            messages.append({"role": "assistant", "content": ai_raw})
+
+    messages.append({"role": "user", "content": user_input})
+
+    stream = client.chat.completions.create(
+        model="gpt-4.1-nano",
+        messages=messages,
+        stream=True,
+    )
+
+    for part in stream:
+        delta = part.choices[0].delta.content
+        if delta:
+            print(repr(delta))
+            yield delta
+
+    yield "[DONE]"
+
+
+def image_generate_stream(prompt):
+    """Stream image generation using the Images API."""
+    client = OpenAI()
+
+    stream = client.images.generate(
+        model="dall-e-3",
+        prompt=prompt,
+        n=1,
+        size="1024x1024",
+        response_format="b64_json",
+        stream=True,
+    )
+
+    last_b64 = None
+    for chunk in stream:
+        if chunk.data:
+            b64 = chunk.data[0].b64_json
+            last_b64 = b64
+            print(repr(b64[:10] + "..."))
+            yield "data:image/png;base64," + b64
+
+    yield "[DONE]"
+    return last_b64
 
 def apology(message, code=400):
     """Render message as an apology to user."""
