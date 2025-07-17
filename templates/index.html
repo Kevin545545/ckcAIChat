@@ -15,7 +15,11 @@
         <div class="form-check mb-3">
             <input class="form-check-input" type="checkbox" id="web_search" name="web_search">
             <label class="form-check-label" for="web_search">Enable Web Search</label>
-        </div>        
+        </div>
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="reasoning" name="reasoning">
+            <label class="form-check-label" for="reasoning">Enable Reasoning</label>
+        </div>
         <div class="mb-3">
             <label for="file" class="form-label">Attach a file(.pdf) or image (optional):</label>
             <input type="file" class="form-control" id="file" name="file">
@@ -24,16 +28,15 @@
         <button type="submit" class="btn btn-primary">submit</button>
     </form>
     {% if messages %}
-    <div class="mt-4">
-        <h5>Conversation：</h5>
-        <ul class="list-group">
-            {% for m in messages %}
-            <li class="list-group-item">
-                <strong>You：</strong> {{ m.user }}<br>
-                <strong>James Cao：</strong> <div class="ai-md">{{ m.ai | safe }}</div>
-            </li>
-            {% endfor %}
-        </ul>
+    <div class="chat-container mt-4">
+        {% for m in messages %}
+        <div class="chat-message user">
+            <div class="message">{{ m.user }}</div>
+        </div>
+        <div class="chat-message assistant">
+            <div class="message"><div class="ai-md">{{ m.ai | safe }}</div></div>
+        </div>
+        {% endfor %}
     </div>
     <script>
     function renderMarkdown() {

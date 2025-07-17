@@ -6,15 +6,16 @@
 
 {% block content %}
   <h2>Conversation History</h2>
-  <ul class="list-group">
+  <div class="chat-container">
     {% for m in messages %}
-      <li class="list-group-item">
-          <div><strong>You:</strong> {{ m.user }}</div>
-          <div><strong>James Cao:</strong></div>
-          <div class="ai-md">{{ m.ai | safe }}</div>
-      </li>
+      <div class="chat-message user">
+          <div class="message">{{ m.user }}</div>
+      </div>
+      <div class="chat-message assistant">
+          <div class="message"><div class="ai-md">{{ m.ai | safe }}</div></div>
+      </div>
     {% endfor %}
-  </ul>
+  </div>
 
   {% if not messages %}
     <p>No conversation history found.</p>

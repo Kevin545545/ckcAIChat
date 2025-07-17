@@ -55,8 +55,9 @@ def query():
     if not os.getenv("OPENAI_API_KEY"):
         return apology("OpenAI API key not set", 500)
 
-    # Web search option
+    # Web search and reasoning options
     web_search = request.form.get("web_search") == "on"
+    reasoning = request.form.get("reasoning") == "on"
 
     # Handle file upload
     client = OpenAI()
@@ -101,12 +102,16 @@ def query():
                 "content": input_content
             }
         ]
-        ai_reply, _ = ai_query(input_payload, web_search=web_search)
+        ai_reply, summaries, _ = ai_query(input_payload, web_search=web_search, reasoning=reasoning)
+        if summaries:
+            ai_reply = "<em>Reasoning Summary:</em> " + " ".join(summaries) + "<br>" + ai_reply
         if not ai_reply:
             return apology("Failed to process file input", 500)
     else:
         # Query OpenAI without file
-        ai_reply, _ = ai_query(user_input, web_search=web_search)
+        ai_reply, summaries, _ = ai_query(user_input, web_search=web_search, reasoning=reasoning)
+        if summaries:
+            ai_reply = "<em>Reasoning Summary:</em> " + " ".join(summaries) + "<br>" + ai_reply
 
     # If error, return apology page
     if ai_reply.startswith("[Error]:"):

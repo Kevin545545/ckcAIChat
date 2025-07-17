@@ -15,16 +15,15 @@
     </form>
 
     {% if messages %}
-    <div class="mt-4">
-        <h5>Conversation：</h5>
-        <ul class="list-group">
-            {% for m in messages %}
-            <li class="list-group-item">
-                <strong>You：</strong> {{ m.user }}<br>
-                <strong>James Cao：</strong> <div class="ai-md">{{ m.ai | safe }}</div>
-            </li>
-            {% endfor %}
-        </ul>
+    <div class="chat-container mt-4">
+        {% for m in messages %}
+        <div class="chat-message user">
+            <div class="message">{{ m.user }}</div>
+        </div>
+        <div class="chat-message assistant">
+            <div class="message"><div class="ai-md">{{ m.ai | safe }}</div></div>
+        </div>
+        {% endfor %}
     </div>
     {% endif %}
 {% endblock %}
