@@ -1,6 +1,7 @@
 from cs50 import SQL
 from flask import Flask, flash, redirect, render_template, request, session, url_for, send_file, Response, stream_with_context
 from flask_session import Session
+from flask_cors import CORS
 from werkzeug.security import check_password_hash, generate_password_hash
 from openai import OpenAI
 
@@ -20,11 +21,13 @@ from io import BytesIO
 
 # Configure application
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET")
 
 # Configure session to use filesystem (instead of signed cookies)
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
+CORS(app, supports_credentials=True)
 
 # In-memory conversation history stored globally for a single user/demo session
 conversation_memory = {}
@@ -139,14 +142,11 @@ def stream_query():
     user_input = request.args.get("query")
     if not user_input:
         return "Missing query", 400
-    web_search = request.args.get("web_search") == "1"
-    reasoning = request.args.get("reasoning") == "1"
-
     def generate():
-        for chunk in ai_query_stream(user_input, web_search=web_search, reasoning=reasoning):
+        for chunk in ai_query_stream(user_input):
+
             print(repr(chunk))
             yield f"data: {chunk}\n\n"
-
     headers = {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
@@ -203,7 +203,6 @@ def stream_generate_image():
         "Connection": "keep-alive"
     }
     return Response(stream_with_context(generate()), headers=headers)
-
 
 @app.route("/temp_files/<filename>")
 def serve_temp_file(filename):

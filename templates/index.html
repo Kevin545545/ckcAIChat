@@ -27,6 +27,7 @@
 
         <button type="submit" class="btn btn-primary">submit</button>
     </form>
+    <div id="stream-output"></div>
     {% if messages %}
     <div class="chat-container mt-4">
         {% for m in messages %}
@@ -53,36 +54,26 @@
     {% endif %}
 </div>
 <script>
-document.getElementById('query-form').addEventListener('submit', function(e) {
+
+document.getElementById('query-form').addEventListener('submit', function(e){
     e.preventDefault();
-    const form = e.target;
-    const query = document.getElementById('query').value;
-    const webSearch = document.getElementById('web_search').checked ? '1' : '0';
-    const reasoning = document.getElementById('reasoning').checked ? '1' : '0';
-    const chat = document.querySelector('.chat-container') || document.createElement('div');
-    if (!chat.classList.contains('chat-container')) {
-        chat.className = 'chat-container mt-4';
-        form.insertAdjacentElement('afterend', chat);
-    }
-
-    const outputId = 'stream-output-' + Date.now();
-    chat.insertAdjacentHTML('beforeend', `<div class="chat-message user"><div class="message">${query}</div></div><div class="chat-message assistant"><div class="message"><div class="ai-md" id="${outputId}"></div></div></div>`);
-
-    const output = document.getElementById(outputId);
-    const source = new EventSource(`/stream_query?query=${encodeURIComponent(query)}&web_search=${webSearch}&reasoning=${reasoning}`);
-    source.onmessage = function(e) {
-        if (e.data === 'DONE:') {
-            source.close();
-            document.querySelectorAll('pre code').forEach(block => {
-                hljs.highlightElement(block);
-            });
+    const userInput = document.getElementById('query').value;
+    const outputDiv = document.getElementById('stream-output');
+    outputDiv.textContent = '';
+    const es = new EventSource(`/stream_query?query=${encodeURIComponent(userInput)}`);
+    es.onmessage = e => {
+        if (e.data === "[DONE]") {
+            es.close();
+            document.querySelectorAll('pre code').forEach(block=>hljs.highlightElement(block));
         } else {
-            output.textContent += e.data;
-            output.innerHTML = marked.parse(output.textContent);
+            outputDiv.textContent += e.data;
+            outputDiv.innerHTML = marked.parse(outputDiv.textContent);
         }
     };
-    source.onerror = function() {
-        source.close();
+    es.onerror = err => {
+        console.error("SSE error", err);
+        es.close();
+
     };
 });
 </script>
