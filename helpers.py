@@ -168,9 +168,8 @@ def ai_query_stream(
             yield getattr(event, "text_delta", "")
         elif getattr(event, "type", "") == "response.completed":
             conversation_memory["last_response_id"] = getattr(event, "id", None)
-            yield "[DONE]"
+            yield "[DONE]"ts
     # STREAMING MOD END
-
 
 def image_generate_stream(prompt, previous_response_id=None, partial_images=2):
     """Stream image generation partials as base64 strings."""
