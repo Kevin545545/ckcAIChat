@@ -159,12 +159,60 @@ def stream_query():
 
     # Fallback to synchronous query when tools or files are used
     if web_search or reasoning or (uploaded_file and uploaded_file.filename):
-        rendered = query()
-        # query() returned the full HTML already as a str:
-        data = rendered
+        client = OpenAI()
+        file_id = None
+        file_type = None
+        if uploaded_file and uploaded_file.filename:
+            fname = uploaded_file.filename.lower()
+            if fname.endswith(".pdf"):
+                purpose = "user_data"
+                file_type = "input_file"
+            elif fname.endswith((".png", ".jpg", ".jpeg", ".gif", ".webp")):
+                purpose = "vision"
+                file_type = "input_image"
+            else:
+                def gen_err():
+                    yield "data: Invalid file type\n\n"
+                    yield "data: [DONE]\n\n"
+
+                headers = {
+                    "Content-Type": "text/event-stream",
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                }
+                return Response(stream_with_context(gen_err()), headers=headers, status=400)
+
+            file_obj = client.files.create(
+                file=(uploaded_file.filename, uploaded_file.stream, uploaded_file.mimetype),
+                purpose=purpose,
+            )
+            file_id = file_obj.id
+
+        if file_id:
+            content = [
+                {"type": file_type, "file_id": file_id},
+                {"type": "input_text", "text": user_input},
+            ]
+            payload = [{"role": "user", "content": content}]
+            ai_html, ai_raw, summaries, _ = ai_query(
+                payload, web_search=web_search, reasoning=reasoning
+            )
+        else:
+            ai_html, ai_raw, summaries, _ = ai_query(
+                user_input, web_search=web_search, reasoning=reasoning
+            )
+
+        if summaries:
+            summary = " ".join(summaries)
+            ai_raw = f"Reasoning Summary: {summary}\n" + ai_raw
+            ai_html = f"<em>Reasoning Summary:</em> {summary}<br>" + ai_html
+
+        history_msgs = conversation_memory.get("messages", [])
+        history_msgs.append({"user": user_input, "ai": ai_html, "ai_raw": ai_raw})
+        conversation_memory["messages"] = history_msgs
 
         def gen_sync():
-            yield f"data: {data}\n\n"
+            yield f"data: {ai_raw}\n\n"
             yield "data: [DONE]\n\n"
 
         headers = {
