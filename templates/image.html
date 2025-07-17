@@ -37,33 +37,24 @@ document.getElementById('image-form').addEventListener('submit', function(e) {
         chat.className = 'chat-container mt-4';
         form.insertAdjacentElement('afterend', chat);
     }
-    chat.insertAdjacentHTML('beforeend', `<div class="chat-message user"><div class="message">${prompt}</div></div><div class="chat-message assistant"><div class="message" id="img-output"></div></div>`);
+    const outputId = 'img-output-' + Date.now();
+    chat.insertAdjacentHTML('beforeend', `<div class="chat-message user"><div class="message">${prompt}</div></div><div class="chat-message assistant"><div class="message" id="${outputId}"></div></div>`);
 
-    const output = document.getElementById('img-output');
-    fetch(`/stream_generate_image?prompt=${encodeURIComponent(prompt)}`)
-        .then(resp => {
-            const reader = resp.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-            function read() {
-                reader.read().then(({done, value}) => {
-                    if (done) return;
-                    buffer += decoder.decode(value, {stream: true});
-                    const parts = buffer.split('\n\n');
-                    buffer = parts.pop();
-                    parts.forEach(part => {
-                        if (part.startsWith('data: img:')) {
-                            const b64 = part.replace('data: img:', '').trim();
-                            const img = document.createElement('img');
-                            img.src = 'data:image/png;base64,' + b64;
-                            img.style.maxWidth = '400px';
-                            output.appendChild(img);
-                        }
-                    });
-                    read();
-                });
-            }
-            read();
-        });
+    const output = document.getElementById(outputId);
+    const source = new EventSource(`/stream_generate_image?prompt=${encodeURIComponent(prompt)}`);
+    source.onmessage = function(e) {
+        if (e.data.startsWith('img:')) {
+            const b64 = e.data.replace('img:', '');
+            const img = document.createElement('img');
+            img.src = 'data:image/png;base64,' + b64;
+            img.style.maxWidth = '400px';
+            output.appendChild(img);
+        } else if (e.data.startsWith('DONE:')) {
+            source.close();
+        }
+    };
+    source.onerror = function() {
+        source.close();
+    };
 });
 </script>

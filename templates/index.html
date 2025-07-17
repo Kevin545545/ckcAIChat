@@ -64,30 +64,24 @@ document.getElementById('query-form').addEventListener('submit', function(e) {
         chat.className = 'chat-container mt-4';
         form.insertAdjacentElement('afterend', chat);
     }
-    chat.insertAdjacentHTML('beforeend', `<div class="chat-message user"><div class="message">${query}</div></div><div class="chat-message assistant"><div class="message" id="stream-output"></div></div>`);
 
-    const output = document.getElementById('stream-output');
-    fetch(`/stream_query?query=${encodeURIComponent(query)}&web_search=${webSearch}&reasoning=${reasoning}`)
-        .then(resp => {
-            const reader = resp.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-            function read() {
-                reader.read().then(({done, value}) => {
-                    if (done) { renderMarkdown(); return; }
-                    buffer += decoder.decode(value, {stream: true});
-                    const parts = buffer.split('\n\n');
-                    buffer = parts.pop();
-                    parts.forEach(part => {
-                        if (part.startsWith('data:')) {
-                            output.innerHTML += part.slice(5);
-                        }
-                    });
-                    read();
-                });
-            }
-            read();
-        });
+    const outputId = 'stream-output-' + Date.now();
+    chat.insertAdjacentHTML('beforeend', `<div class="chat-message user"><div class="message">${query}</div></div><div class="chat-message assistant"><div class="message"><div class="ai-md" id="${outputId}"></div></div></div>`);
+
+    const output = document.getElementById(outputId);
+    const source = new EventSource(`/stream_query?query=${encodeURIComponent(query)}&web_search=${webSearch}&reasoning=${reasoning}`);
+    source.onmessage = function(e) {
+        if (e.data.startsWith('DONE:')) {
+            source.close();
+            renderMarkdown();
+        } else {
+            output.textContent += e.data;
+        }
+    };
+    source.onerror = function() {
+        source.close();
+    };
+
 });
 </script>
 {% endblock %}
