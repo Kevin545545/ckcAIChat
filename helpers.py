@@ -116,60 +116,50 @@ def ai_query_stream(
     user_input,
     web_search=False,
     reasoning=False,
-    max_output_tokens=4000,
-    model="gpt-4.1-nano",
     previous_response_id=None,
 ):
-    """Stream AI reply text chunks using the Responses API."""  # STREAMING MOD START
+    """Stream AI reply text chunks using Chat Completions."""  # STREAMING MOD START
     client = OpenAI()
-    is_multimodal = isinstance(user_input, (list, dict))
 
-    if reasoning and web_search:
-        model = "o4-mini"
-        tools = [{"type": "web_search_preview"}]
-        create_kwargs = {
-            "model": model,
-            "tools": tools,
-            "reasoning": {"effort": "medium", "summary": "auto"},
-            "max_output_tokens": max_output_tokens,
-            "stream": True,
-        }
-    elif reasoning:
-        model = "o4-mini"
-        create_kwargs = {
-            "model": model,
-            "reasoning": {"effort": "medium", "summary": "auto"},
-            "max_output_tokens": max_output_tokens,
-            "stream": True,
-        }
-    else:
-        if web_search:
-            model = "gpt-4o-mini"
-            tools = [{"type": "web_search_preview"}]
-        else:
-            tools = None
-        create_kwargs = {"model": model, "stream": True}
-        if tools:
-            create_kwargs["tools"] = tools
-
+    messages = []
+    system_parts = []
     if previous_response_id:
-        create_kwargs["previous_response_id"] = previous_response_id
-        if is_multimodal:
-            create_kwargs["input"] = user_input
+        system_parts.append(f"Previous response id: {previous_response_id}")
+    if web_search:
+        system_parts.append("Use web search")
+    if reasoning:
+        system_parts.append("Enable reasoning")
+    if system_parts:
+        messages.append({"role": "system", "content": " ".join(system_parts)})
+
+    if isinstance(user_input, list):
+        if len(user_input) == 1 and isinstance(user_input[0], dict):
+            messages.append({"role": "user", "content": user_input[0]["content"]})
         else:
-            create_kwargs["input"] = [{"role": "user", "content": user_input}]
+            messages.extend(user_input)
+    elif isinstance(user_input, dict):
+        messages.append({"role": "user", "content": user_input})
     else:
-        create_kwargs["input"] = user_input
+        messages.append({"role": "user", "content": user_input})
 
-    stream = client.responses.create(**create_kwargs)
+    stream = client.chat.completions.create(
+        model="gpt-4.1-nano",
+        messages=messages,
+        stream=True,
+    )
 
-    for event in stream:
-        if getattr(event, "type", "") == "response.output_text.delta":
-            yield getattr(event, "text_delta", "")
-        elif getattr(event, "type", "") == "response.completed":
-            conversation_memory["last_response_id"] = getattr(event, "id", None)
-            yield "[DONE]"ts
+    response_id = None
+    for chunk in stream:
+        if response_id is None:
+            response_id = getattr(chunk, "id", None)
+        delta = chunk.choices[0].delta
+        if delta and delta.content:
+            yield delta.content
+
+    conversation_memory["last_response_id"] = response_id
+    yield "[DONE]"
     # STREAMING MOD END
+
 
 def image_generate_stream(prompt, previous_response_id=None, partial_images=2):
     """Stream image generation partials as base64 strings."""
