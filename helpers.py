@@ -13,12 +13,16 @@ conversation_memory = {}
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 HEADERS = {"Authorization": f"Bearer {OPENAI_API_KEY}"}
 
-def ai_query(user_input, web_search=False):
-    """
-    Query OpenAI with memory support. Returns (ai_reply, new_response_id).
-    Only supports single-user (global memory).
-    user_input can be a string (text) or a list/dict (multi-modal input).
-    web_search: if True, uses web search tools.
+def ai_query(user_input, web_search=False, reasoning=False, max_output_tokens=4000):
+    """Query OpenAI with memory support.
+
+    Returns ``(ai_reply, reasoning_summaries, new_response_id)``. Only supports
+    single-user (global memory). ``user_input`` can be a string or a
+    list/dict for multimodal input.
+
+    ``web_search``: enable web search tool.
+    ``reasoning``: enable o4-mini reasoning mode.
+    ``max_output_tokens``: total output/ reasoning tokens when reasoning.
     """
     client = OpenAI()
     previous_response_id = conversation_memory.get('last_response_id')
@@ -26,15 +30,32 @@ def ai_query(user_input, web_search=False):
         # Detect if user_input is multimodal (list/dict) or plain text
         is_multimodal = isinstance(user_input, (list, dict))
         # Decide model/tools
-        if web_search:
-            model = "gpt-4o-mini"
+        if reasoning and web_search:
+            model = "o4-mini"
             tools = [{"type": "web_search_preview"}]
+            create_kwargs = {
+                "model": model,
+                "tools": tools,
+                "reasoning": {"effort": "medium", "summary": "auto"},
+                "max_output_tokens": max_output_tokens,
+            }
+        elif reasoning:
+            model = "o4-mini"
+            create_kwargs = {
+                "model": model,
+                "reasoning": {"effort": "medium", "summary": "auto"},
+                "max_output_tokens": max_output_tokens,
+            }
         else:
-            model = "gpt-4.1-nano"
-            tools = None
-        create_kwargs = {"model": model}
-        if tools:
-            create_kwargs["tools"] = tools
+            if web_search:
+                model = "gpt-4o-mini"
+                tools = [{"type": "web_search_preview"}]
+            else:
+                model = "gpt-4.1-nano"
+                tools = None
+            create_kwargs = {"model": model}
+            if tools:
+                create_kwargs["tools"] = tools
         if previous_response_id:
             create_kwargs["previous_response_id"] = previous_response_id
             if is_multimodal:
@@ -44,17 +65,23 @@ def ai_query(user_input, web_search=False):
         else:
             create_kwargs["input"] = user_input
         response = client.responses.create(**create_kwargs)
-        # Return AI reply
+        # Return AI reply and reasoning summary if any
         raw = response.output_text
         ai_reply = md(
             raw,
             extensions=["fenced_code", "codehilite"]
         )
+        summaries = []
+        for output in getattr(response, "output", []):
+            if getattr(output, "type", None) == "reasoning":
+                for s in getattr(output, "summary", []):
+                    if getattr(s, "type", None) == "summary_text":
+                        summaries.append(getattr(s, "text", ""))
         # Save last response id for memory
         conversation_memory['last_response_id'] = response.id
-        return ai_reply, response.id
+        return ai_reply, summaries, response.id
     except Exception as e:
-        return f"[Error]: {e}", None
+        return f"[Error]: {e}", [], None
 
 def image_generate(prompt, previous_response_id=None):
     """
