@@ -1,26 +1,38 @@
 from cs50 import SQL
-from flask import Flask, flash, redirect, render_template, request, session, url_for, send_file
+from flask import Flask, flash, redirect, render_template, request, session, url_for, send_file, Response, stream_with_context
 from flask_session import Session
+from flask_cors import CORS
 from werkzeug.security import check_password_hash, generate_password_hash
 from openai import OpenAI
 
-from helpers import apology, ai_query, image_generate, code_interpreter_query
+from helpers import (
+    apology,
+    ai_query,
+    image_generate,
+    code_interpreter_query,
+    ai_query_stream,
+    image_generate_stream,
+    conversation_memory,  # STREAMING MOD START - share memory
+)
+from markdown import markdown as md  # STREAMING MOD END
 
 import datetime
 import os
 import requests
+import base64
 from io import BytesIO
 
 # Configure application
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET")
 
 # Configure session to use filesystem (instead of signed cookies)
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
+CORS(app, supports_credentials=True)
 
-# In-memory conversation history stored globally for a single user/demo session
-conversation_memory = {}
+# In-memory conversation history comes from helpers (see import above)
 
 # Store last image response id for multi-turn image generation
 image_memory = {}
@@ -125,6 +137,74 @@ def query():
     messages.append({"user": user_input, "ai": ai_reply})
     return render_template("index.html", messages=messages)
 
+
+@app.route("/stream_query", methods=["POST"])
+def stream_query():
+    """Stream chat responses via server-sent events with full feature support."""  # STREAMING MOD START
+    user_input = request.form.get("query")
+    if not user_input:
+        return "Missing query", 400
+
+    web_search = request.form.get("web_search") == "on"
+    reasoning = request.form.get("reasoning") == "on"
+
+    client = OpenAI()
+    uploaded_file = request.files.get("file")
+    file_id = None
+    file_type_for_input = None
+    if uploaded_file and uploaded_file.filename:
+        filename = uploaded_file.filename.lower()
+        if filename.endswith('.pdf'):
+            file_purpose = "user_data"
+            file_type_for_input = "input_file"
+        elif filename.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')):
+            file_purpose = "vision"
+            file_type_for_input = "input_image"
+        else:
+            return "Unsupported file type", 400
+        file_obj = client.files.create(
+            file=(uploaded_file.filename, uploaded_file.stream, uploaded_file.mimetype),
+            purpose=file_purpose,
+        )
+        file_id = file_obj.id
+
+    if file_id:
+        input_content = [
+            {"type": file_type_for_input, "file_id": file_id},
+            {"type": "input_text", "text": user_input},
+        ]
+        payload = [{"role": "user", "content": input_content}]
+    else:
+        payload = user_input
+
+    prev_id = conversation_memory.get('last_response_id')
+
+    def generate():
+        collected = ""
+        for chunk in ai_query_stream(
+            payload,
+            web_search=web_search,
+            reasoning=reasoning,
+            previous_response_id=prev_id,
+        ):
+            print(repr(chunk))
+            if chunk == "[DONE]":
+                html = md(collected, extensions=["fenced_code", "codehilite"])
+                history_msgs = conversation_memory.get('messages', [])
+                history_msgs.append({"user": user_input, "ai": html})
+                conversation_memory['messages'] = history_msgs
+            else:
+                collected += chunk
+            yield f"data: {chunk}\n\n"
+
+    headers = {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+    }
+    return Response(stream_with_context(generate()), headers=headers)
+# STREAMING MOD END
+
 @app.route("/generate_image", methods=["POST", "GET"])
 def generate_image():
 
@@ -152,6 +232,49 @@ def generate_image():
     # Only show image messages in the image page
     image_msgs = [msg for msg in history_msgs if '<img' in msg.get('ai', '')]
     return render_template("image.html", messages=image_msgs)
+
+
+@app.route("/stream_generate_image")
+def stream_generate_image():
+    """Stream image generation via server-sent events."""
+    prompt = request.args.get("prompt")
+    if not prompt:
+        return "Missing prompt", 400
+    prev_id = image_memory.get("last_image_response_id")
+
+    def generate():
+        gen = image_generate_stream(prompt, previous_response_id=prev_id)
+        last_b64 = None
+        last_id = None
+        while True:
+            try:
+                chunk = next(gen)
+            except StopIteration as e:
+                if e.value:
+                    last_b64, last_id = e.value
+                break
+            print(repr(chunk))
+            if chunk.startswith("data:image/"):
+                last_b64 = chunk.split(",", 1)[1]
+            yield f"data: {chunk}\n\n"
+        if last_id and last_b64:
+            temp_dir = os.path.join(os.path.dirname(__file__), "temp_files")
+            os.makedirs(temp_dir, exist_ok=True)
+            filename = f"generated_{last_id}.png"
+            file_path = os.path.join(temp_dir, filename)
+            with open(file_path, "wb") as f:
+                f.write(base64.b64decode(last_b64))
+            image_memory["last_image_response_id"] = last_id
+            history_msgs = conversation_memory.get('messages', [])
+            history_msgs.append({"user": prompt, "ai": f'<img src="/temp_files/{filename}" alt="generated image" style="max-width:400px;">'})
+            conversation_memory['messages'] = history_msgs
+
+    headers = {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive"
+    }
+    return Response(stream_with_context(generate()), headers=headers)
 
 @app.route("/temp_files/<filename>")
 def serve_temp_file(filename):
