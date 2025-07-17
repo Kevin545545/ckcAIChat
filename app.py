@@ -148,7 +148,7 @@ def query():
 
 @app.route("/stream_query", methods=["POST"])
 def stream_query():
-    """Stream chat responses via server-sent events."""  # STREAMING MOD START
+    """Stream chat responses via server-sent events."""
     user_input = request.form.get("query")
     if not user_input:
         return "Missing query", 400
@@ -156,15 +156,15 @@ def stream_query():
     web_search = request.form.get("web_search") == "on"
     reasoning = request.form.get("reasoning") == "on"
     uploaded_file = request.files.get("file")
-    file_present = uploaded_file and uploaded_file.filename
 
-    # --- Fallback to synchronous query when using extra features ---
-    if web_search or reasoning or file_present:
-        rendered = query()  # reuse existing logic
-        response_obj = rendered[0] if isinstance(rendered, tuple) else rendered
+    # Fallback to synchronous query when tools or files are used
+    if web_search or reasoning or (uploaded_file and uploaded_file.filename):
+        rendered = query()
+        resp = rendered[0] if isinstance(rendered, tuple) else rendered
+        data = resp.get_data(as_text=True)
 
-        def generate_sync():
-            yield f"data: {response_obj.get_data(as_text=True)}\n\n"
+        def gen_sync():
+            yield f"data: {data}\n\n"
             yield "data: [DONE]\n\n"
 
         headers = {
@@ -172,26 +172,18 @@ def stream_query():
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
         }
-        return Response(stream_with_context(generate_sync()), headers=headers)
+        return Response(stream_with_context(gen_sync()), headers=headers)
 
-    # --- Streaming branch for plain text queries ---
-    prev_id = None  # streaming via Chat Completions uses message history
-    history_msgs = conversation_memory.get('messages', [])
+    history_msgs = conversation_memory.get("messages", [])
 
     def generate():
         collected = ""
-        for chunk in ai_query_stream(
-            user_input,
-            chat_history=history_msgs,
-            web_search=web_search,
-            reasoning=reasoning,
-            previous_response_id=prev_id,
-        ):
+        for chunk in ai_query_stream(user_input, history=history_msgs):
             print(repr(chunk))
             if chunk == "[DONE]":
                 html = md(collected, extensions=["fenced_code", "codehilite"])
                 history_msgs.append({"user": user_input, "ai": html, "ai_raw": collected})
-                conversation_memory['messages'] = history_msgs
+                conversation_memory["messages"] = history_msgs
             else:
                 collected += chunk
             yield f"data: {chunk}\n\n"
@@ -239,34 +231,25 @@ def stream_generate_image():
     prompt = request.args.get("prompt")
     if not prompt:
         return "Missing prompt", 400
-    prev_id = image_memory.get("last_image_response_id")
-
     def generate():
-        gen = image_generate_stream(prompt, previous_response_id=prev_id)
+        gen = image_generate_stream(prompt)
         last_b64 = None
-        last_id = None
-        while True:
-            try:
-                chunk = next(gen)
-            except StopIteration as e:
-                if e.value:
-                    last_b64, last_id = e.value
-                break
+        for chunk in gen:
             print(repr(chunk))
             if chunk.startswith("data:image/"):
                 last_b64 = chunk.split(",", 1)[1]
             yield f"data: {chunk}\n\n"
-        if last_id and last_b64:
+        if last_b64:
             temp_dir = os.path.join(os.path.dirname(__file__), "temp_files")
             os.makedirs(temp_dir, exist_ok=True)
-            filename = f"generated_{last_id}.png"
+            filename = f"generated_{int(datetime.datetime.now().timestamp())}.png"
             file_path = os.path.join(temp_dir, filename)
             with open(file_path, "wb") as f:
                 f.write(base64.b64decode(last_b64))
-            image_memory["last_image_response_id"] = last_id
             history_msgs = conversation_memory.get('messages', [])
             history_msgs.append({"user": prompt, "ai": f'<img src="/temp_files/{filename}" alt="generated image" style="max-width:400px;">'})
             conversation_memory['messages'] = history_msgs
+            yield "data: [DONE]\n\n"
 
     headers = {
         "Content-Type": "text/event-stream",

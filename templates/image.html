@@ -43,7 +43,7 @@ document.getElementById('image-form').addEventListener('submit', function(e) {
     const output = document.getElementById(outputId);
     const source = new EventSource(`/stream_generate_image?prompt=${encodeURIComponent(prompt)}`);
     source.onmessage = function(e) {
-        if (e.data === 'DONE:') {
+        if (e.data === '[DONE]') {
             source.close();
         } else if (e.data.startsWith('data:image/')) {
             const img = new Image();

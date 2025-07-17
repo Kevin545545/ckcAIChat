@@ -112,47 +112,18 @@ def image_generate(prompt, previous_response_id=None):
         return file_path, filename, response.id
     return None, None, response.id
 
-def ai_query_stream(
-    user_input,
-    chat_history=None,
-    web_search=False,
-    reasoning=False,
-    previous_response_id=None,
-):
-    """Stream AI reply text chunks using Chat Completions.
-
-    Only used when the query is plain text without web search, reasoning
-    or file uploads."""  # STREAMING MOD START
+def ai_query_stream(user_input, history=None):
+    """Stream reply text using Chat Completions."""
     client = OpenAI()
 
     messages = []
-    # Build history
-    if chat_history:
-        for m in chat_history:
-            if 'user' in m:
-                messages.append({'role': 'user', 'content': m['user']})
-            if 'ai_raw' in m:
-                messages.append({'role': 'assistant', 'content': m.get('ai_raw', m.get('ai', ''))})
+    if history:
+        for item in history:
+            messages.append({"role": "user", "content": item.get("user", "")})
+            ai_raw = item.get("ai_raw") or item.get("ai", "")
+            messages.append({"role": "assistant", "content": ai_raw})
 
-    system_parts = []
-    if previous_response_id:
-        system_parts.append(f"Previous response id: {previous_response_id}")
-    if web_search:
-        system_parts.append("Use web search")
-    if reasoning:
-        system_parts.append("Enable reasoning")
-    if system_parts:
-        messages.insert(0, {"role": "system", "content": " ".join(system_parts)})
-
-    if isinstance(user_input, list):
-        if len(user_input) == 1 and isinstance(user_input[0], dict):
-            messages.append({"role": "user", "content": user_input[0]["content"]})
-        else:
-            messages.extend(user_input)
-    elif isinstance(user_input, dict):
-        messages.append({"role": "user", "content": user_input})
-    else:
-        messages.append({"role": "user", "content": user_input})
+    messages.append({"role": "user", "content": user_input})
 
     stream = client.chat.completions.create(
         model="gpt-4.1-nano",
@@ -160,45 +131,38 @@ def ai_query_stream(
         stream=True,
     )
 
-    response_id = None
-    for chunk in stream:
-        if response_id is None:
-            response_id = getattr(chunk, "id", None)
-        delta = chunk.choices[0].delta
-        if delta and delta.content:
-            yield delta.content
+    for part in stream:
+        delta = part.choices[0].delta.content
+        if delta:
+            print(repr(delta))
+            yield delta
 
-    conversation_memory["last_response_id"] = response_id
     yield "[DONE]"
-    # STREAMING MOD END
 
 
-def image_generate_stream(prompt, previous_response_id=None, partial_images=2):
-    """Stream image generation partials as base64 strings."""
+def image_generate_stream(prompt):
+    """Stream image generation using the Images API."""
     client = OpenAI()
-    kwargs = {
-        "model": "gpt-4.1-nano",
-        "input": prompt,
-        "tools": [{"type": "image_generation", "quality": "low", "moderation": "low", "partial_images": partial_images}],
-        "stream": True,
-    }
-    if previous_response_id:
-        kwargs["previous_response_id"] = previous_response_id
 
-    stream = client.responses.create(**kwargs)
+    stream = client.images.generate(
+        model="dall-e-3",
+        prompt=prompt,
+        n=1,
+        size="1024x1024",
+        response_format="b64_json",
+        stream=True,
+    )
 
     last_b64 = None
-    last_id = None
-    for event in stream:
-        event_type = getattr(event, "type", "")
-        if event_type == "response.image_generation_call.partial_image":
-            last_b64 = getattr(event, "partial_image_b64", "")
-            yield "data:image/png;base64," + last_b64
-        elif event_type == "response.completed":
-            last_id = getattr(event, "id", None)
-            conversation_memory['last_response_id'] = last_id
-            yield "DONE:"
-    return last_b64, last_id
+    for chunk in stream:
+        if chunk.data:
+            b64 = chunk.data[0].b64_json
+            last_b64 = b64
+            print(repr(b64[:10] + "..."))
+            yield "data:image/png;base64," + b64
+
+    yield "[DONE]"
+    return last_b64
 
 def apology(message, code=400):
     """Render message as an apology to user."""
