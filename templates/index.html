@@ -7,7 +7,8 @@
 {% block content %}
 <div class="container">
     <h1 class="mt-5">ckcAI Chat</h1>
-    <form method="POST" action="/query" enctype="multipart/form-data">
+    <!-- STREAMING MOD START -->
+    <form id="query-form" method="POST" action="/query" enctype="multipart/form-data">
         <div class="mb-3">
             <label for="query" class="form-label">Please input your questions：</label>
             <textarea class="form-control" id="query" name="query" rows="4" required></textarea>
@@ -27,6 +28,7 @@
 
         <button type="submit" class="btn btn-primary">submit</button>
     </form>
+    <div id="stream-output"></div>
     {% if messages %}
     <div class="chat-container mt-4">
         {% for m in messages %}
@@ -52,4 +54,47 @@
     </script>
     {% endif %}
 </div>
+<script>
+// STREAMING MOD START
+document.getElementById('query-form').addEventListener('submit', async function(e){
+    e.preventDefault();
+    const formData = new FormData(e.target);
+
+    const chat = document.querySelector('.chat-container') || document.createElement('div');
+    if (!chat.classList.contains('chat-container')) {
+        chat.className = 'chat-container mt-4';
+        e.target.insertAdjacentElement('afterend', chat);
+    }
+    chat.insertAdjacentHTML('beforeend',
+        `<div class="chat-message user"><div class="message">${formData.get('query')}</div></div>` +
+        `<div class="chat-message assistant"><div class="message"></div></div>`);
+    const msgEl = chat.querySelector('.chat-message.assistant:last-child .message');
+
+    const response = await fetch('/stream_query', {method:'POST', body: formData});
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+        const {value, done} = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, {stream: true});
+        let lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+            if (line.startsWith('data: ')) {
+                const data = line.slice(6);
+                if (data === '[DONE]') {
+                    msgEl.innerHTML = marked.parse(msgEl.textContent);
+                    msgEl.querySelectorAll('pre code').forEach(b=>hljs.highlightElement(b));
+                } else {
+                    msgEl.textContent += data;
+                    msgEl.innerHTML = marked.parse(msgEl.textContent);
+                }
+            }
+        }
+    }
+});
+// STREAMING MOD END
+</script>
+<!-- STREAMING MOD END -->
 {% endblock %}
