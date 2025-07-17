@@ -112,6 +112,7 @@ def image_generate(prompt, previous_response_id=None):
         return file_path, filename, response.id
     return None, None, response.id
 
+
 def ai_query_stream(user_input, model="gpt-4.1-nano"):
     """Stream AI reply text chunks using the Chat Completions API."""
     client = OpenAI()
@@ -125,6 +126,7 @@ def ai_query_stream(user_input, model="gpt-4.1-nano"):
         if delta and getattr(delta, "content", None):
             yield delta.content
     yield "[DONE]"
+
 
 
 def image_generate_stream(prompt, previous_response_id=None, partial_images=2):

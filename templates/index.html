@@ -54,6 +54,7 @@
     {% endif %}
 </div>
 <script>
+
 document.getElementById('query-form').addEventListener('submit', function(e){
     e.preventDefault();
     const userInput = document.getElementById('query').value;
@@ -72,6 +73,7 @@ document.getElementById('query-form').addEventListener('submit', function(e){
     es.onerror = err => {
         console.error("SSE error", err);
         es.close();
+
     };
 });
 </script>

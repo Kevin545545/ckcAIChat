@@ -144,15 +144,16 @@ def stream_query():
         return "Missing query", 400
     def generate():
         for chunk in ai_query_stream(user_input):
+
             print(repr(chunk))
             yield f"data: {chunk}\n\n"
-
     headers = {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
         "Connection": "keep-alive"
     }
     return Response(stream_with_context(generate()), headers=headers)
+
 
 @app.route("/generate_image", methods=["POST", "GET"])
 def generate_image():
