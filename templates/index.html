@@ -54,27 +54,34 @@
     {% endif %}
 </div>
 <script>
-
-document.getElementById('query-form').addEventListener('submit', function(e){
+document.getElementById('query-form').addEventListener('submit', async function(e){
     e.preventDefault();
-    const userInput = document.getElementById('query').value;
+    const formData = new FormData(e.target);
     const outputDiv = document.getElementById('stream-output');
     outputDiv.textContent = '';
-    const es = new EventSource(`/stream_query?query=${encodeURIComponent(userInput)}`);
-    es.onmessage = e => {
-        if (e.data === "[DONE]") {
-            es.close();
-            document.querySelectorAll('pre code').forEach(block=>hljs.highlightElement(block));
-        } else {
-            outputDiv.textContent += e.data;
-            outputDiv.innerHTML = marked.parse(outputDiv.textContent);
+    const response = await fetch('/stream_query', {method: 'POST', body: formData});
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+        const {value, done} = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, {stream: true});
+        let lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+            if (line.startsWith('data: ')) {
+                const data = line.slice(6);
+                if (data === '[DONE]') {
+                    document.querySelectorAll('pre code').forEach(block => hljs.highlightElement(block));
+                } else {
+                    outputDiv.textContent += data;
+                    outputDiv.innerHTML = marked.parse(outputDiv.textContent);
+                }
+            }
         }
-    };
-    es.onerror = err => {
-        console.error("SSE error", err);
-        es.close();
+    }
 
-    };
 });
 </script>
 {% endblock %}
