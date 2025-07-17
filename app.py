@@ -1,10 +1,17 @@
 from cs50 import SQL
-from flask import Flask, flash, redirect, render_template, request, session, url_for, send_file
+from flask import Flask, flash, redirect, render_template, request, session, url_for, send_file, Response, stream_with_context
 from flask_session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
 from openai import OpenAI
 
-from helpers import apology, ai_query, image_generate, code_interpreter_query
+from helpers import (
+    apology,
+    ai_query,
+    image_generate,
+    code_interpreter_query,
+    ai_query_stream,
+    image_generate_stream,
+)
 
 import datetime
 import os
@@ -125,6 +132,28 @@ def query():
     messages.append({"user": user_input, "ai": ai_reply})
     return render_template("index.html", messages=messages)
 
+
+@app.route("/stream_query")
+def stream_query():
+    """Stream chat responses via server-sent events."""
+    user_input = request.args.get("query")
+    if not user_input:
+        return "Missing query", 400
+    web_search = request.args.get("web_search") == "1"
+    reasoning = request.args.get("reasoning") == "1"
+
+    def generate():
+        for chunk in ai_query_stream(user_input, web_search=web_search, reasoning=reasoning):
+            print(repr(chunk))
+            yield f"data: {chunk}\n\n"
+
+    headers = {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive"
+    }
+    return Response(stream_with_context(generate()), headers=headers)
+
 @app.route("/generate_image", methods=["POST", "GET"])
 def generate_image():
 
@@ -152,6 +181,27 @@ def generate_image():
     # Only show image messages in the image page
     image_msgs = [msg for msg in history_msgs if '<img' in msg.get('ai', '')]
     return render_template("image.html", messages=image_msgs)
+
+
+@app.route("/stream_generate_image")
+def stream_generate_image():
+    """Stream image generation via server-sent events."""
+    prompt = request.args.get("prompt")
+    if not prompt:
+        return "Missing prompt", 400
+    prev_id = image_memory.get("last_image_response_id")
+
+    def generate():
+        for chunk in image_generate_stream(prompt, previous_response_id=prev_id):
+            print(repr(chunk))
+            yield f"data: {chunk}\n\n"
+
+    headers = {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive"
+    }
+    return Response(stream_with_context(generate()), headers=headers)
 
 @app.route("/temp_files/<filename>")
 def serve_temp_file(filename):

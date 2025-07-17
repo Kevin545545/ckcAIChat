@@ -112,6 +112,83 @@ def image_generate(prompt, previous_response_id=None):
         return file_path, filename, response.id
     return None, None, response.id
 
+def ai_query_stream(user_input, web_search=False, reasoning=False, max_output_tokens=4000):
+    """Stream AI reply text chunks using the Responses API."""
+    client = OpenAI()
+    previous_response_id = conversation_memory.get('last_response_id')
+
+    # Prepare API call similar to ``ai_query`` but with streaming enabled
+    is_multimodal = isinstance(user_input, (list, dict))
+    if reasoning and web_search:
+        model = "o4-mini"
+        tools = [{"type": "web_search_preview"}]
+        create_kwargs = {
+            "model": model,
+            "tools": tools,
+            "reasoning": {"effort": "medium", "summary": "auto"},
+            "max_output_tokens": max_output_tokens,
+        }
+    elif reasoning:
+        model = "o4-mini"
+        create_kwargs = {
+            "model": model,
+            "reasoning": {"effort": "medium", "summary": "auto"},
+            "max_output_tokens": max_output_tokens,
+        }
+    else:
+        if web_search:
+            model = "gpt-4o-mini"
+            tools = [{"type": "web_search_preview"}]
+        else:
+            model = "gpt-4.1-nano"
+            tools = None
+        create_kwargs = {"model": model}
+        if tools:
+            create_kwargs["tools"] = tools
+
+    if previous_response_id:
+        create_kwargs["previous_response_id"] = previous_response_id
+        if is_multimodal:
+            create_kwargs["input"] = user_input
+        else:
+            create_kwargs["input"] = [{"role": "user", "content": user_input}]
+    else:
+        create_kwargs["input"] = user_input
+
+    create_kwargs["stream"] = True
+    stream = client.responses.create(**create_kwargs)
+
+    for event in stream:
+        event_type = getattr(event, "type", "")
+        if event_type == "response.output_text.delta":
+            yield getattr(event, "text", "")
+        elif event_type == "response.completed":
+            conversation_memory['last_response_id'] = getattr(event, "id", None)
+            yield "DONE:"
+
+
+def image_generate_stream(prompt, previous_response_id=None, partial_images=2):
+    """Stream image generation partials as base64 strings."""
+    client = OpenAI()
+    kwargs = {
+        "model": "gpt-4.1-nano",
+        "input": prompt,
+        "tools": [{"type": "image_generation", "quality": "low", "moderation": "low", "partial_images": partial_images}],
+        "stream": True,
+    }
+    if previous_response_id:
+        kwargs["previous_response_id"] = previous_response_id
+
+    stream = client.responses.create(**kwargs)
+
+    for event in stream:
+        event_type = getattr(event, "type", "")
+        if event_type == "response.image_generation_call.partial_image":
+            yield "data:image/png;base64," + getattr(event, "partial_image_b64", "")
+        elif event_type == "response.completed":
+            conversation_memory['last_response_id'] = getattr(event, "id", None)
+            yield "DONE:"
+
 def apology(message, code=400):
     """Render message as an apology to user."""
 
