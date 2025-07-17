@@ -203,6 +203,7 @@ def stream_query():
     }
     return Response(stream_with_context(generate()), headers=headers)
 
+
 @app.route("/generate_image", methods=["POST", "GET"])
 def generate_image():
 

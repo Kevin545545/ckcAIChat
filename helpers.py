@@ -112,6 +112,7 @@ def image_generate(prompt, previous_response_id=None):
         return file_path, filename, response.id
     return None, None, response.id
 
+
 def ai_query_stream(
     user_input,
     web_search=False,
@@ -171,6 +172,7 @@ def ai_query_stream(
             yield "[DONE]"
 
 
+
 def image_generate_stream(prompt, previous_response_id=None, partial_images=2):
     """Stream image generation partials as base64 strings."""
     client = OpenAI()
@@ -197,6 +199,7 @@ def image_generate_stream(prompt, previous_response_id=None, partial_images=2):
             conversation_memory['last_response_id'] = last_id
             yield "DONE:"
     return last_b64, last_id
+
 
 def apology(message, code=400):
     """Render message as an apology to user."""
