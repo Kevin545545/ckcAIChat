@@ -79,7 +79,7 @@ def ai_query(user_input, web_search=False, reasoning=False, max_output_tokens=40
                         summaries.append(getattr(s, "text", ""))
         # Save last response id for memory
         conversation_memory['last_response_id'] = response.id
-        return ai_reply, summaries, response.id
+        return ai_reply, raw, summaries, response.id
     except Exception as e:
         return f"[Error]: {e}", [], None
 
@@ -114,6 +114,7 @@ def image_generate(prompt, previous_response_id=None):
 
 def ai_query_stream(
     user_input,
+    chat_history=None,
     web_search=False,
     reasoning=False,
     previous_response_id=None,
@@ -125,6 +126,14 @@ def ai_query_stream(
     client = OpenAI()
 
     messages = []
+    # Build history
+    if chat_history:
+        for m in chat_history:
+            if 'user' in m:
+                messages.append({'role': 'user', 'content': m['user']})
+            if 'ai_raw' in m:
+                messages.append({'role': 'assistant', 'content': m.get('ai_raw', m.get('ai', ''))})
+
     system_parts = []
     if previous_response_id:
         system_parts.append(f"Previous response id: {previous_response_id}")
@@ -133,7 +142,7 @@ def ai_query_stream(
     if reasoning:
         system_parts.append("Enable reasoning")
     if system_parts:
-        messages.append({"role": "system", "content": " ".join(system_parts)})
+        messages.insert(0, {"role": "system", "content": " ".join(system_parts)})
 
     if isinstance(user_input, list):
         if len(user_input) == 1 and isinstance(user_input[0], dict):

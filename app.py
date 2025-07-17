@@ -12,7 +12,6 @@ from helpers import (
     code_interpreter_query,
     ai_query_stream,
     image_generate_stream,
-    conversation_memory,  # STREAMING MOD START - share memory
 )
 from markdown import markdown as md  # STREAMING MOD END
 
@@ -32,7 +31,8 @@ app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 CORS(app, supports_credentials=True)
 
-# In-memory conversation history comes from helpers (see import above)
+# In-memory conversation history for chat
+conversation_memory = {}
 
 # Store last image response id for multi-turn image generation
 image_memory = {}
@@ -114,16 +114,24 @@ def query():
                 "content": input_content
             }
         ]
-        ai_reply, summaries, _ = ai_query(input_payload, web_search=web_search, reasoning=reasoning)
+        ai_reply, ai_raw, summaries, _ = ai_query(
+            input_payload, web_search=web_search, reasoning=reasoning
+        )
         if summaries:
-            ai_reply = "<em>Reasoning Summary:</em> " + " ".join(summaries) + "<br>" + ai_reply
+            ai_reply = (
+                "<em>Reasoning Summary:</em> " + " ".join(summaries) + "<br>" + ai_reply
+            )
         if not ai_reply:
             return apology("Failed to process file input", 500)
     else:
         # Query OpenAI without file
-        ai_reply, summaries, _ = ai_query(user_input, web_search=web_search, reasoning=reasoning)
+        ai_reply, ai_raw, summaries, _ = ai_query(
+            user_input, web_search=web_search, reasoning=reasoning
+        )
         if summaries:
-            ai_reply = "<em>Reasoning Summary:</em> " + " ".join(summaries) + "<br>" + ai_reply
+            ai_reply = (
+                "<em>Reasoning Summary:</em> " + " ".join(summaries) + "<br>" + ai_reply
+            )
 
     # If error, return apology page
     if ai_reply.startswith("[Error]:"):
@@ -131,7 +139,7 @@ def query():
 
     # --- Save conversation to memory for history page ---
     history_msgs = conversation_memory.get('messages', [])
-    history_msgs.append({"user": user_input, "ai": ai_reply})
+    history_msgs.append({"user": user_input, "ai": ai_reply, "ai_raw": ai_raw})
     conversation_memory['messages'] = history_msgs
 
     messages.append({"user": user_input, "ai": ai_reply})
@@ -153,9 +161,10 @@ def stream_query():
     # --- Fallback to synchronous query when using extra features ---
     if web_search or reasoning or file_present:
         rendered = query()  # reuse existing logic
+        response_obj = rendered[0] if isinstance(rendered, tuple) else rendered
 
         def generate_sync():
-            yield f"data: {rendered.get_data(as_text=True)}\n\n"
+            yield f"data: {response_obj.get_data(as_text=True)}\n\n"
             yield "data: [DONE]\n\n"
 
         headers = {
@@ -166,12 +175,14 @@ def stream_query():
         return Response(stream_with_context(generate_sync()), headers=headers)
 
     # --- Streaming branch for plain text queries ---
-    prev_id = conversation_memory.get('last_response_id')
+    prev_id = None  # streaming via Chat Completions uses message history
+    history_msgs = conversation_memory.get('messages', [])
 
     def generate():
         collected = ""
         for chunk in ai_query_stream(
             user_input,
+            chat_history=history_msgs,
             web_search=web_search,
             reasoning=reasoning,
             previous_response_id=prev_id,
@@ -179,8 +190,7 @@ def stream_query():
             print(repr(chunk))
             if chunk == "[DONE]":
                 html = md(collected, extensions=["fenced_code", "codehilite"])
-                history_msgs = conversation_memory.get('messages', [])
-                history_msgs.append({"user": user_input, "ai": html})
+                history_msgs.append({"user": user_input, "ai": html, "ai_raw": collected})
                 conversation_memory['messages'] = history_msgs
             else:
                 collected += chunk
