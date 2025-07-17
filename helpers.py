@@ -118,7 +118,10 @@ def ai_query_stream(
     reasoning=False,
     previous_response_id=None,
 ):
-    """Stream AI reply text chunks using Chat Completions."""  # STREAMING MOD START
+    """Stream AI reply text chunks using Chat Completions.
+
+    Only used when the query is plain text without web search, reasoning
+    or file uploads."""  # STREAMING MOD START
     client = OpenAI()
 
     messages = []

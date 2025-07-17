@@ -140,49 +140,38 @@ def query():
 
 @app.route("/stream_query", methods=["POST"])
 def stream_query():
-    """Stream chat responses via server-sent events with full feature support."""  # STREAMING MOD START
+    """Stream chat responses via server-sent events."""  # STREAMING MOD START
     user_input = request.form.get("query")
     if not user_input:
         return "Missing query", 400
 
     web_search = request.form.get("web_search") == "on"
     reasoning = request.form.get("reasoning") == "on"
-
-    client = OpenAI()
     uploaded_file = request.files.get("file")
-    file_id = None
-    file_type_for_input = None
-    if uploaded_file and uploaded_file.filename:
-        filename = uploaded_file.filename.lower()
-        if filename.endswith('.pdf'):
-            file_purpose = "user_data"
-            file_type_for_input = "input_file"
-        elif filename.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')):
-            file_purpose = "vision"
-            file_type_for_input = "input_image"
-        else:
-            return "Unsupported file type", 400
-        file_obj = client.files.create(
-            file=(uploaded_file.filename, uploaded_file.stream, uploaded_file.mimetype),
-            purpose=file_purpose,
-        )
-        file_id = file_obj.id
+    file_present = uploaded_file and uploaded_file.filename
 
-    if file_id:
-        input_content = [
-            {"type": file_type_for_input, "file_id": file_id},
-            {"type": "input_text", "text": user_input},
-        ]
-        payload = [{"role": "user", "content": input_content}]
-    else:
-        payload = user_input
+    # --- Fallback to synchronous query when using extra features ---
+    if web_search or reasoning or file_present:
+        rendered = query()  # reuse existing logic
 
+        def generate_sync():
+            yield f"data: {rendered.get_data(as_text=True)}\n\n"
+            yield "data: [DONE]\n\n"
+
+        headers = {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+        return Response(stream_with_context(generate_sync()), headers=headers)
+
+    # --- Streaming branch for plain text queries ---
     prev_id = conversation_memory.get('last_response_id')
 
     def generate():
         collected = ""
         for chunk in ai_query_stream(
-            payload,
+            user_input,
             web_search=web_search,
             reasoning=reasoning,
             previous_response_id=prev_id,
