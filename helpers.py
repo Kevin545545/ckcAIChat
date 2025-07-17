@@ -81,7 +81,7 @@ def ai_query(user_input, web_search=False, reasoning=False, max_output_tokens=40
         conversation_memory['last_response_id'] = response.id
         return ai_reply, raw, summaries, response.id
     except Exception as e:
-        return f"[Error]: {e}", [], None
+        return f"[Error]: {e}", "", [], None
 
 def image_generate(prompt, previous_response_id=None):
     """

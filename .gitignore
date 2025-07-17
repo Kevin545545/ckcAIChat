@@ -6,9 +6,6 @@ __pycache__/
 # C extensions
 *.so
 
-# Md files
-*.md
-
 # Temp files
 /temp_files/
 
