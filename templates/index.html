@@ -7,7 +7,7 @@
 {% block content %}
 <div class="container">
     <h1 class="mt-5">ckcAI Chat</h1>
-    <form method="POST" action="/query" enctype="multipart/form-data">
+    <form id="query-form" method="POST" action="/query" enctype="multipart/form-data">
         <div class="mb-3">
             <label for="query" class="form-label">Please input your questions：</label>
             <textarea class="form-control" id="query" name="query" rows="4" required></textarea>
@@ -27,6 +27,7 @@
 
         <button type="submit" class="btn btn-primary">submit</button>
     </form>
+    <div id="stream-output"></div>
     {% if messages %}
     <div class="chat-container mt-4">
         {% for m in messages %}
@@ -52,4 +53,34 @@
     </script>
     {% endif %}
 </div>
+<script>
+document.getElementById('query-form').addEventListener('submit', async function(e){
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const outputDiv = document.getElementById('stream-output');
+    outputDiv.textContent = '';
+    const response = await fetch('/stream_query', {method: 'POST', body: formData});
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+        const {value, done} = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, {stream: true});
+        let lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+            if (line.startsWith('data: ')) {
+                const data = line.slice(6);
+                if (data === '[DONE]') {
+                    document.querySelectorAll('pre code').forEach(block => hljs.highlightElement(block));
+                } else {
+                    outputDiv.textContent += data;
+                    outputDiv.innerHTML = marked.parse(outputDiv.textContent);
+                }
+            }
+        }
+    }
+});
+</script>
 {% endblock %}
