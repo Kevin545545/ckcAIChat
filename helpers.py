@@ -263,10 +263,7 @@ def code_interpreter_query(user_input, uploaded_file=None, previous_response_id=
     }
     if previous_response_id:
         create_kwargs["previous_response_id"] = previous_response_id
-    try:
-        response = client.responses.create(**create_kwargs)
-    except Exception as e:
-        return apology(f"failed to query code interpreter: {str(e)}", 500)
+    response = client.responses.create(**create_kwargs)
 
     # 提取文本回复和所有生成的文件
     output_text = ""
