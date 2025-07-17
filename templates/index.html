@@ -64,6 +64,7 @@ document.getElementById('query-form').addEventListener('submit', function(e) {
         chat.className = 'chat-container mt-4';
         form.insertAdjacentElement('afterend', chat);
     }
+
     const outputId = 'stream-output-' + Date.now();
     chat.insertAdjacentHTML('beforeend', `<div class="chat-message user"><div class="message">${query}</div></div><div class="chat-message assistant"><div class="message"><div class="ai-md" id="${outputId}"></div></div></div>`);
 
@@ -80,6 +81,7 @@ document.getElementById('query-form').addEventListener('submit', function(e) {
     source.onerror = function() {
         source.close();
     };
+
 });
 </script>
 {% endblock %}

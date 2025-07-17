@@ -166,7 +166,6 @@ def ai_query_stream(user_input, web_search=False, reasoning=False, max_output_to
             conversation_memory['last_response_id'] = getattr(event, "id", None)
             yield "DONE:" + getattr(event, "id", "")
 
-
 def image_generate_stream(prompt, previous_response_id=None, partial_images=2):
     """Stream image generation partials as base64 strings."""
     client = OpenAI()
