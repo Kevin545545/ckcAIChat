@@ -160,8 +160,8 @@ def stream_query():
     # Fallback to synchronous query when tools or files are used
     if web_search or reasoning or (uploaded_file and uploaded_file.filename):
         rendered = query()
-        resp = rendered[0] if isinstance(rendered, tuple) else rendered
-        data = resp.get_data(as_text=True)
+        # query() returned the full HTML already as a str:
+        data = rendered
 
         def gen_sync():
             yield f"data: {data}\n\n"
