@@ -7,7 +7,14 @@
 {% block content %}
 <div class="container">
     <h2>Code Interpreter</h2>
-    <p>适合提问：代码调试、数据分析、数学计算、文件处理等。支持上传 csv、pdf、图片等文件，AI 可自动分析并生成新文件。</p>
+    <p class="lead">
+        <ul class="list-unstyled">
+            <li>Suitable for questions on code debugging, data analysis, mathematical calculations, and file processing.</li>
+            <li>Supports uploading CSV, PDF, images, and other file types.</li>
+            <li>AI automatically analyzes the uploaded files.</li>
+            <li>Generates new files or resources based on the analysis.</li>
+        </ul>
+    </p>
     <form method="POST" enctype="multipart/form-data">
         <div class="mb-3">
             <label for="ci_query" class="form-label">Your question or task:</label>
