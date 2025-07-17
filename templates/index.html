@@ -7,7 +7,7 @@
 {% block content %}
 <div class="container">
     <h1 class="mt-5">ckcAI Chat</h1>
-    <form method="POST" action="/query" enctype="multipart/form-data">
+    <form id="query-form" method="POST" action="/query" enctype="multipart/form-data">
         <div class="mb-3">
             <label for="query" class="form-label">Please input your questions：</label>
             <textarea class="form-control" id="query" name="query" rows="4" required></textarea>
@@ -27,6 +27,7 @@
 
         <button type="submit" class="btn btn-primary">submit</button>
     </form>
+    <div id="stream-output"></div>
     {% if messages %}
     <div class="chat-container mt-4">
         {% for m in messages %}
@@ -52,4 +53,26 @@
     </script>
     {% endif %}
 </div>
+<script>
+document.getElementById('query-form').addEventListener('submit', function(e){
+    e.preventDefault();
+    const userInput = document.getElementById('query').value;
+    const outputDiv = document.getElementById('stream-output');
+    outputDiv.textContent = '';
+    const es = new EventSource(`/stream_query?query=${encodeURIComponent(userInput)}`);
+    es.onmessage = e => {
+        if (e.data === "[DONE]") {
+            es.close();
+            document.querySelectorAll('pre code').forEach(block=>hljs.highlightElement(block));
+        } else {
+            outputDiv.textContent += e.data;
+            outputDiv.innerHTML = marked.parse(outputDiv.textContent);
+        }
+    };
+    es.onerror = err => {
+        console.error("SSE error", err);
+        es.close();
+    };
+});
+</script>
 {% endblock %}

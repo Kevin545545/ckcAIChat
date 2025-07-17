@@ -112,6 +112,43 @@ def image_generate(prompt, previous_response_id=None):
         return file_path, filename, response.id
     return None, None, response.id
 
+def ai_query_stream(user_input, model="gpt-4.1-nano"):
+    """Stream AI reply text chunks using the Chat Completions API."""
+    client = OpenAI()
+    stream = client.chat.completions.create(
+        model=model,
+        messages=[{"role": "user", "content": user_input}],
+        stream=True,
+    )
+    for chunk in stream:
+        delta = chunk.choices[0].delta
+        if delta and getattr(delta, "content", None):
+            yield delta.content
+    yield "[DONE]"
+
+
+def image_generate_stream(prompt, previous_response_id=None, partial_images=2):
+    """Stream image generation partials as base64 strings."""
+    client = OpenAI()
+    kwargs = {
+        "model": "gpt-4.1-nano",
+        "input": prompt,
+        "tools": [{"type": "image_generation", "quality": "low", "moderation": "low", "partial_images": partial_images}],
+        "stream": True,
+    }
+    if previous_response_id:
+        kwargs["previous_response_id"] = previous_response_id
+
+    stream = client.responses.create(**kwargs)
+
+    for event in stream:
+        event_type = getattr(event, "type", "")
+        if event_type == "response.image_generation_call.partial_image":
+            yield "data:image/png;base64," + getattr(event, "partial_image_b64", "")
+        elif event_type == "response.completed":
+            conversation_memory['last_response_id'] = getattr(event, "id", None)
+            yield "DONE:"
+
 def apology(message, code=400):
     """Render message as an apology to user."""
 
