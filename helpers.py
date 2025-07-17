@@ -112,7 +112,6 @@ def image_generate(prompt, previous_response_id=None):
         return file_path, filename, response.id
     return None, None, response.id
 
-
 def ai_query_stream(
     user_input,
     web_search=False,
@@ -121,7 +120,7 @@ def ai_query_stream(
     model="gpt-4.1-nano",
     previous_response_id=None,
 ):
-    """Stream AI reply text chunks using the Responses API."""
+    """Stream AI reply text chunks using the Responses API."""  # STREAMING MOD START
     client = OpenAI()
     is_multimodal = isinstance(user_input, (list, dict))
 
@@ -169,9 +168,8 @@ def ai_query_stream(
             yield getattr(event, "text_delta", "")
         elif getattr(event, "type", "") == "response.completed":
             conversation_memory["last_response_id"] = getattr(event, "id", None)
-            yield "[DONE]"
-
-
+            yield "[DONE]"ts
+    # STREAMING MOD END
 
 def image_generate_stream(prompt, previous_response_id=None, partial_images=2):
     """Stream image generation partials as base64 strings."""
@@ -199,7 +197,6 @@ def image_generate_stream(prompt, previous_response_id=None, partial_images=2):
             conversation_memory['last_response_id'] = last_id
             yield "DONE:"
     return last_b64, last_id
-
 
 def apology(message, code=400):
     """Render message as an apology to user."""

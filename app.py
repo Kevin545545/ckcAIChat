@@ -12,7 +12,10 @@ from helpers import (
     code_interpreter_query,
     ai_query_stream,
     image_generate_stream,
+    conversation_memory,  # STREAMING MOD START - share memory
 )
+from markdown import markdown as md  # STREAMING MOD END
+
 
 import datetime
 import os
@@ -30,8 +33,7 @@ app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 CORS(app, supports_credentials=True)
 
-# In-memory conversation history stored globally for a single user/demo session
-conversation_memory = {}
+# In-memory conversation history comes from helpers (see import above)
 
 # Store last image response id for multi-turn image generation
 image_memory = {}
@@ -139,7 +141,7 @@ def query():
 
 @app.route("/stream_query", methods=["POST"])
 def stream_query():
-    """Stream chat responses via server-sent events with full feature support."""
+    """Stream chat responses via server-sent events with full feature support."""  # STREAMING MOD START
     user_input = request.form.get("query")
     if not user_input:
         return "Missing query", 400
@@ -202,7 +204,7 @@ def stream_query():
         "Connection": "keep-alive",
     }
     return Response(stream_with_context(generate()), headers=headers)
-
+# STREAMING MOD END
 
 @app.route("/generate_image", methods=["POST", "GET"])
 def generate_image():
