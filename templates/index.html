@@ -57,6 +57,14 @@
 <script>
 // STREAMING MOD START
 document.getElementById('query-form').addEventListener('submit', async function(e){
+    // if we're using tools or file uploads, fall back to the normal /query route
+    const useWeb   = document.getElementById('web_search').checked;
+    const useReason= document.getElementById('reasoning').checked;
+    const fileInput= document.getElementById('file');
+    if (useWeb || useReason || (fileInput && fileInput.files.length > 0)) {
+        // let the form submit to /query
+        return;
+    }
     e.preventDefault();
     const formData = new FormData(e.target);
 
