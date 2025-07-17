@@ -154,6 +154,7 @@ def stream_query():
     }
     return Response(stream_with_context(generate()), headers=headers)
 
+
 @app.route("/generate_image", methods=["POST", "GET"])
 def generate_image():
 
@@ -202,6 +203,7 @@ def stream_generate_image():
         "Connection": "keep-alive"
     }
     return Response(stream_with_context(generate()), headers=headers)
+
 
 @app.route("/temp_files/<filename>")
 def serve_temp_file(filename):
