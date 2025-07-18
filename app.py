@@ -2,6 +2,7 @@ from cs50 import SQL
 from flask import Flask, flash, redirect, render_template, request, session, url_for, send_file, Response, stream_with_context
 from flask_session import Session
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit
 from werkzeug.security import check_password_hash, generate_password_hash
 from openai import OpenAI
 
@@ -20,6 +21,9 @@ import os
 import requests
 import base64
 from io import BytesIO
+import asyncio
+import json
+import websockets
 
 # Configure application
 app = Flask(__name__)
@@ -30,6 +34,10 @@ app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 CORS(app, supports_credentials=True)
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+# Mapping of Socket.IO session IDs to OpenAI websocket connections
+realtime_connections = {}
 
 # In-memory conversation history for chat
 conversation_memory = {}
@@ -52,6 +60,11 @@ def after_request(response):
 @app.route("/", methods=["GET"])
 def index():
     return render_template("index.html", messages=None)
+
+# Realtime speech-to-speech conversation page
+@app.route("/realtime", methods=["GET"])
+def realtime_page():
+    return render_template("realtime.html")
 
 # Handle chat requests
 @app.route("/query", methods=["POST"])
@@ -313,3 +326,48 @@ def download_ci_file(container_id, file_id, filename):
             )
     except Exception as e:
         return apology(f"Failed to download file: {str(e)}", 500)
+
+
+# ---------------- Real-time conversation websocket handlers -----------------
+@socketio.on("start", namespace="/realtime")
+def start_realtime():
+    socketio.start_background_task(openai_realtime, request.sid)
+
+
+@socketio.on("audio_chunk", namespace="/realtime")
+def handle_audio_chunk(data):
+    ws = realtime_connections.get(request.sid)
+    if ws:
+        asyncio.create_task(ws.send(data))
+
+
+@socketio.on("stop", namespace="/realtime")
+def stop_realtime():
+    ws = realtime_connections.pop(request.sid, None)
+    if ws:
+        asyncio.create_task(ws.close())
+
+
+async def openai_realtime(sid):
+    uri = "wss://api.openai.com/v1/realtime"
+    headers = {"Authorization": f"Bearer {OPENAI_API_KEY}"}
+    async with websockets.connect(uri, extra_headers=headers) as ws:
+        realtime_connections[sid] = ws
+        config = {
+            "type": "start",
+            "data": {
+                "model": "gpt-4o-realtime-preview",
+                "voice": "alloy",
+                "transcript_model": "whisper-1",
+            }
+        }
+        await ws.send(json.dumps(config))
+        async for msg in ws:
+            if isinstance(msg, bytes):
+                socketio.emit("audio_out", msg, to=sid, namespace="/realtime")
+            else:
+                socketio.emit("info", msg, to=sid, namespace="/realtime")
+
+
+if __name__ == "__main__":
+    socketio.run(app, debug=True)
