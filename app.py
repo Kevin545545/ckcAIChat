@@ -315,7 +315,10 @@ def download_ci_file(container_id, file_id, filename):
     client = OpenAI()
     try:
         url = f"https://api.openai.com/v1/containers/{container_id}/files/{file_id}/content"
-        headers = {"Authorization": f"Bearer {OPENAI_API_KEY}"}
+        headers = {
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "OpenAI-Beta": "realtime=v1",
+        }
 
         resp = requests.get(url, headers=headers)
         if resp.status_code == 200:
