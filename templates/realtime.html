@@ -7,6 +7,7 @@
 <button id="start" class="btn btn-primary">Start</button>
 <button id="stop" class="btn btn-secondary" disabled>Stop</button>
 <audio id="audioOut" class="mt-3" controls></audio>
+<pre id="transcript" class="mt-3"></pre>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
 const socket = io('/realtime');
@@ -45,6 +46,10 @@ socket.on('audio_out', data => {
     const audio = document.getElementById('audioOut');
     audio.src = url;
     audio.play();
+});
+socket.on('transcript', text => {
+    const pre = document.getElementById('transcript');
+    pre.textContent += text + '\n';
 });
 </script>
 {% endblock %}
