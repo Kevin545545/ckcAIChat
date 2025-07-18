@@ -331,12 +331,15 @@ def download_ci_file(container_id, file_id, filename):
 # ---------------- Real-time conversation websocket handlers -----------------
 @socketio.on("start", namespace="/realtime")
 def start_realtime():
+    sid = request.sid
     loop = asyncio.new_event_loop()
     q = asyncio.Queue()
-    realtime_connections[request.sid] = {"loop": loop, "queue": q}
+    realtime_connections[sid] = {"loop": loop, "queue": q}
+
     def run():
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(openai_realtime(request.sid, q))
+        loop.run_until_complete(openai_realtime(sid, q))
+
     socketio.start_background_task(run)
 
 
