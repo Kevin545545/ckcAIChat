@@ -331,28 +331,41 @@ def download_ci_file(container_id, file_id, filename):
 # ---------------- Real-time conversation websocket handlers -----------------
 @socketio.on("start", namespace="/realtime")
 def start_realtime():
-    socketio.start_background_task(openai_realtime, request.sid)
+    loop = asyncio.new_event_loop()
+    q = asyncio.Queue()
+    realtime_connections[request.sid] = {"loop": loop, "queue": q}
+    def run():
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(openai_realtime(request.sid, q))
+    socketio.start_background_task(run)
 
 
 @socketio.on("audio_chunk", namespace="/realtime")
 def handle_audio_chunk(data):
-    ws = realtime_connections.get(request.sid)
-    if ws:
-        asyncio.create_task(ws.send(data))
+    conn = realtime_connections.get(request.sid)
+    if conn:
+        loop = conn.get("loop")
+        q = conn.get("queue")
+        if loop and q:
+            asyncio.run_coroutine_threadsafe(q.put(data), loop)
 
 
 @socketio.on("stop", namespace="/realtime")
 def stop_realtime():
-    ws = realtime_connections.pop(request.sid, None)
-    if ws:
-        asyncio.create_task(ws.close())
+    conn = realtime_connections.pop(request.sid, None)
+    if conn:
+        loop = conn.get("loop")
+        q = conn.get("queue")
+        if loop and q:
+            asyncio.run_coroutine_threadsafe(q.put(None), loop)
 
 
-async def openai_realtime(sid):
+async def openai_realtime(sid, queue):
     uri = "wss://api.openai.com/v1/realtime"
     headers = {"Authorization": f"Bearer {OPENAI_API_KEY}"}
     async with websockets.connect(uri, extra_headers=headers) as ws:
-        realtime_connections[sid] = ws
+        # save websocket so we can close it later
+        realtime_connections[sid]["ws"] = ws
         config = {
             "type": "start",
             "data": {
@@ -362,11 +375,32 @@ async def openai_realtime(sid):
             }
         }
         await ws.send(json.dumps(config))
-        async for msg in ws:
-            if isinstance(msg, bytes):
-                socketio.emit("audio_out", msg, to=sid, namespace="/realtime")
-            else:
-                socketio.emit("info", msg, to=sid, namespace="/realtime")
+
+        async def sender():
+            while True:
+                chunk = await queue.get()
+                if chunk is None:
+                    break
+                await ws.send(chunk)
+
+        send_task = asyncio.create_task(sender())
+        try:
+            async for msg in ws:
+                if isinstance(msg, bytes):
+                    socketio.emit("audio_out", msg, to=sid, namespace="/realtime")
+                else:
+                    try:
+                        payload = json.loads(msg)
+                        if payload.get("type") == "transcript":
+                            text = payload.get("data", {}).get("text", "")
+                            socketio.emit("transcript", text, to=sid, namespace="/realtime")
+                        else:
+                            socketio.emit("info", payload, to=sid, namespace="/realtime")
+                    except Exception:
+                        socketio.emit("info", msg, to=sid, namespace="/realtime")
+        finally:
+            send_task.cancel()
+            await ws.close()
 
 
 if __name__ == "__main__":
