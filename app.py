@@ -23,6 +23,7 @@ import base64
 from io import BytesIO
 import asyncio
 import json
+import inspect
 import websockets
 
 # Configure application
@@ -331,12 +332,15 @@ def download_ci_file(container_id, file_id, filename):
 # ---------------- Real-time conversation websocket handlers -----------------
 @socketio.on("start", namespace="/realtime")
 def start_realtime():
+    sid = request.sid
     loop = asyncio.new_event_loop()
     q = asyncio.Queue()
-    realtime_connections[request.sid] = {"loop": loop, "queue": q}
+    realtime_connections[sid] = {"loop": loop, "queue": q}
+
     def run():
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(openai_realtime(request.sid, q))
+        loop.run_until_complete(openai_realtime(sid, q))
+
     socketio.start_background_task(run)
 
 
@@ -361,18 +365,38 @@ def stop_realtime():
 
 
 async def openai_realtime(sid, queue):
-    uri = "wss://api.openai.com/v1/realtime"
-    headers = {"Authorization": f"Bearer {OPENAI_API_KEY}"}
-    async with websockets.connect(uri, extra_headers=headers) as ws:
+    uri = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview"
+    headers = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "OpenAI-Beta": "realtime=v1",
+    }
+    connect_sig = inspect.signature(websockets.connect)
+    kwarg = "extra_headers" if "extra_headers" in connect_sig.parameters else "additional_headers"
+    async with websockets.connect(uri, **{kwarg: headers}) as ws:
         # save websocket so we can close it later
         realtime_connections[sid]["ws"] = ws
+
+        # wait for session.created from server
+        while True:
+            msg = await ws.recv()
+            try:
+                event = json.loads(msg)
+                if event.get("type") == "session.created":
+                    break
+            except Exception:
+                continue
+
         config = {
-            "type": "start",
-            "data": {
-                "model": "gpt-4o-realtime-preview",
+            "type": "session.update",
+            "session": {
                 "voice": "alloy",
-                "transcript_model": "whisper-1",
-            }
+                "input_audio_transcription": {"model": "whisper-1"},
+                "input_audio_format": "pcm16",
+                "output_audio_format": "pcm16",
+                "input_audio_noise_reduction": None,
+                "temperature": 0.8,
+                "modalities": ["audio", "text"],
+            },
         }
         await ws.send(json.dumps(config))
 
