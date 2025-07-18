@@ -1,0 +1,50 @@
+{% extends "layout.html" %}
+
+{% block title %}Realtime Conversation{% endblock %}
+
+{% block content %}
+<h2>Realtime Conversation</h2>
+<button id="start" class="btn btn-primary">Start</button>
+<button id="stop" class="btn btn-secondary" disabled>Stop</button>
+<audio id="audioOut" class="mt-3" controls></audio>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+const socket = io('/realtime');
+let recorder;
+let stream;
+const startBtn = document.getElementById('start');
+const stopBtn = document.getElementById('stop');
+
+startBtn.onclick = async () => {
+    stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    recorder = new MediaRecorder(stream);
+    socket.emit('start');
+    recorder.ondataavailable = e => {
+        if (e.data.size > 0) {
+            e.data.arrayBuffer().then(buf => {
+                socket.emit('audio_chunk', buf);
+            });
+        }
+    };
+    recorder.start(300);
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+};
+
+stopBtn.onclick = () => {
+    recorder.stop();
+    socket.emit('stop');
+    stream.getTracks().forEach(t => t.stop());
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+};
+
+socket.on('audio_out', data => {
+    const blob = new Blob([data], {type: 'audio/ogg; codecs=opus'});
+    const url = URL.createObjectURL(blob);
+    const audio = document.getElementById('audioOut');
+    audio.src = url;
+    audio.play();
+});
+</script>
+{% endblock %}
