@@ -1,4 +1,4 @@
-![image-20250708190934861](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250708190934861.png)
+![image-20250708190934861](images\image-1.png)
 
 ## To do list 7.9:
 
@@ -12,7 +12,7 @@
 - Walfram
 - **Issue: Mardown in history.html can't be parsed.**
 
-![image-20250711194141867](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250711194141867.png)
+![image-20250711194141867](images\image-2.png)
 
 ## Completion 7.10
 
@@ -43,9 +43,9 @@
 | gpt-4.1-minigpt-4.1-mini-2025-04-14 | $0.40 | $0.10  | $1.60 |
 | gpt-4.1-nanogpt-4.1-nano-2025-04-14 | $0.10 | $0.025 | $0.40 |
 
-![image-20250711224726704](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250711224726704.png)
+![image-20250711224726704](images\image-3.png)
 
-3. History successfully allow all the previous image and text![image-20250712003827306](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250712003827306.png)
+3. History successfully allow all the previous image and text![image-20250712003827306](images\image-4.png)
 
 ## 7.13 Completion
 
@@ -55,9 +55,9 @@
 
 3. History.html adds the picture pharsing function. Now all the pictures in history can be presented correctly.
 
-   ![image-20250713004938939](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250713004938939.png)
+   ![image-20250713004938939](images\image-5.png)
 
-![image-20250713005008307](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250713005008307.png)
+![image-20250713005008307](images\image-6.png)
 
 **Issue: Markdown still can not be pharsed in history.html**
 
@@ -65,19 +65,19 @@
 
 1. **FIX ISSUE !! Markdown now can be correctly pharsed in history.html**
 
-![image-20250714141241844](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250714141241844.png)
+![image-20250714141241844](images\image-7.png)
 
 2. Add one function : Code interpreter
 
-   ![image-20250715015153759](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250715015153759.png)
+   ![image-20250715015153759](images\image-8.png)
 
 It can receive almost every type of files, and generate files you want. 
 
 ## 7.15 Test Code Intepreter
 
-![image-20250715180419609](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250715180419609.png)
+![image-20250715180419609](images\image-9.png)
 
-![cfile_68767ae299448191892a3e93ec28fa33](C:\Users\ckc\Desktop\CS50x2024\Project\temp_files\cfile_68767ae299448191892a3e93ec28fa33.png)![cfile_68767ae29a1481919ce35cb52a0c3d0b](C:\Users\ckc\Desktop\CS50x2024\Project\temp_files\cfile_68767ae29a1481919ce35cb52a0c3d0b.png)
+![cfile_68767ae299448191892a3e93ec28fa33](images\cfile_1.png)![cfile_68767ae29a1481919ce35cb52a0c3d0b](images\cfile_2.png)
 
 ## 7.19
 
@@ -85,34 +85,34 @@ Finally finish the project. Although there is some pity , like some functions ar
 
 - **Image generation and memory:**
 
-![image-20250719211653896](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250719211653896.png)
+![image-20250719211653896](images\image-10.png)
 
 - **Simple Texts Generation and Memory:**
 
-![image-20250719211856081](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250719211856081.png)
+![image-20250719211856081](images\image-11.png)
 
 - **Web Search Tool: **
 
-![image-20250719211927671](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250719211927671.png)
+![image-20250719211927671](images\image-12.png)
 
 - **Reasoning Tool (And Web Search Tool)**
 
-![image-20250719212128914](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250719212128914.png)
+![image-20250719212128914](images\image-13.png)
 
 - **Image Explanation**
 
-![image-20250719212214747](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250719212214747.png)
+![image-20250719212214747](images\image-14.png)
 
 - **Code Interpreter**
 
-![image-20250719212352508](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250719212352508.png)
+![image-20250719212352508](images\image-15.png)
 
-![cfile_687bf0989064819189a042bb54244478](C:\Users\ckc\Desktop\CS50x2024\Project\temp_files\cfile_687bf0989064819189a042bb54244478.png)
+![cfile_687bf0989064819189a042bb54244478](images\cfile_3.png)
 
 *Different types of files*
 
-![image-20250719212841299](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250719212841299.png)
+![image-20250719212841299](images\image-16.png)
 
 - **Realtime Conversation**
 
-![image-20250719213320916](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250719213320916.png)
+![image-20250719213320916](images\image-17.png)
