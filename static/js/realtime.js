@@ -1,4 +1,5 @@
 /* ========== Realtime Conversation JS (extracted) ========== */
+/*===========chatGPT o3 model generated code=============*/
 const socket = io('/realtime');
 const TARGET_RATE = 24000;
 const SEND_INTERVAL_MS = 50;
@@ -52,7 +53,7 @@ async function ensureRealtimeSession(){
   if (!awaitingSession){
     awaitingSession = true;
     startBtn.disabled = true;
-    logLine("⏳ 初始化会话...");
+    logLine("⏳ Initialize session...");
     socket.emit('realtime_init');
   }
   await new Promise(res=>{
@@ -89,9 +90,9 @@ async function startCapture(){
       lastSendTime = now; flushAndSend(); updateMeters();
     }
   };
-  setTimeout(()=>{ if (sending && totalSamples===0) logLine("⚠️ 未检测到音频帧，检查麦克风。"); }, 600);
+  setTimeout(()=>{ if (sending && totalSamples===0) logLine("⚠️ Do not detect audio frames, check microphone."); }, 600);
   startBtn.disabled = true; disconnectBtn.disabled = false; forceStopBtn.disabled = true;
-  logLine("🎤 已开始连续采集 (server_vad)...");
+  logLine("🎤 Started continuous capture (server_vad)...");
   updateMeters();
 }
 
@@ -111,13 +112,13 @@ function flushAndSend(){
 
 function forceStopTurn(){
   if (!sending) return;
-  if (!appendedSinceCommit){ logLine("ℹ️ Force Stop 忽略：无新音频。"); return; }
-  if (turnSamples < FORCE_MIN_SAMPLES){ logLine("⚠️ 当前语音 <120ms，忽略。"); return; }
+  if (!appendedSinceCommit){ logLine("ℹ️ Force Stop ignore, no new audio."); return; }
+  if (turnSamples < FORCE_MIN_SAMPLES){ logLine("⚠️ Current audio <120ms, ignored."); return; }
   const now = Date.now();
-  if (now - lastForceStopTs < 500){ logLine("ℹ️ 冷却中。"); return; }
+  if (now - lastForceStopTs < 500){ logLine("ℹ️ Cooling down."); return; }
   lastForceStopTs = now; forceStopCooldown = true; forceStopBtn.disabled = true;
   flushAndSend(); socket.emit('stop');
-  logLine("⏹️ 手动结束当前话轮，等待回复...");
+  logLine("⏹️ Manually ended current turn, waiting for response...");
   appendedSinceCommit=false; turnSamples=0;
   setTimeout(()=>{ forceStopCooldown=false; }, 600);
 }
@@ -130,7 +131,7 @@ function disconnectSession(){
   socket.emit('disconnect_realtime');
   realtimeSessionActive=false;
   startBtn.disabled=false; forceStopBtn.disabled=true; disconnectBtn.disabled=true;
-  logLine("🔌 已断开会话。"); metersEl.textContent="";
+  logLine("🔌 Disconnected session."); metersEl.textContent="";
 }
 
 function updateMeters(){
@@ -174,7 +175,7 @@ function finalizeAndPlay(){
   const wav = pcm16ToWav(pcm, TARGET_RATE);
   audioOutEl.src = URL.createObjectURL(wav);
   audioOutEl.play();
-  logLine("🔈 已播放 James Cao 语音。");
+  logLine("🔈 Played James Cao's voice.");
   audioChunks=[];
 }
 

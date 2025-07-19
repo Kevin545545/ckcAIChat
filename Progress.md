@@ -78,3 +78,41 @@ It can receive almost every type of files, and generate files you want.
 ![image-20250715180419609](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250715180419609.png)
 
 ![cfile_68767ae299448191892a3e93ec28fa33](C:\Users\ckc\Desktop\CS50x2024\Project\temp_files\cfile_68767ae299448191892a3e93ec28fa33.png)![cfile_68767ae29a1481919ce35cb52a0c3d0b](C:\Users\ckc\Desktop\CS50x2024\Project\temp_files\cfile_68767ae29a1481919ce35cb52a0c3d0b.png)
+
+## 7.19
+
+Finally finish the project. Although there is some pity , like some functions are not realized, I am totally happy about what I made within just two weeks. It's time to show my project.
+
+- **Image generation and memory:**
+
+![image-20250719211653896](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250719211653896.png)
+
+- **Simple Texts Generation and Memory:**
+
+![image-20250719211856081](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250719211856081.png)
+
+- **Web Search Tool: **
+
+![image-20250719211927671](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250719211927671.png)
+
+- **Reasoning Tool (And Web Search Tool)**
+
+![image-20250719212128914](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250719212128914.png)
+
+- **Image Explanation**
+
+![image-20250719212214747](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250719212214747.png)
+
+- **Code Interpreter**
+
+![image-20250719212352508](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250719212352508.png)
+
+![cfile_687bf0989064819189a042bb54244478](C:\Users\ckc\Desktop\CS50x2024\Project\temp_files\cfile_687bf0989064819189a042bb54244478.png)
+
+*Different types of files*
+
+![image-20250719212841299](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250719212841299.png)
+
+- **Realtime Conversation**
+
+![image-20250719213320916](C:\Users\ckc\AppData\Roaming\Typora\typora-user-images\image-20250719213320916.png)

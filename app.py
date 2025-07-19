@@ -1,4 +1,3 @@
-from cs50 import SQL
 from flask import Flask, flash, redirect, render_template, request, session, url_for, send_file, Response, stream_with_context
 from flask_session import Session
 from flask_cors import CORS
@@ -335,11 +334,11 @@ def download_ci_file(container_id, file_id, filename):
 # ---------------- Real-time conversation websocket handlers -----------------
 def launch_realtime_session(sid: str):
     """
-    为给定 sid 启动后台协程。
-    如果已存在旧记录，先忽略（避免重复）。
+    run the given sid to start a background coroutine. 
+    If an old record exists, ignore it (to avoid duplication).
     """
     if sid in realtime_connections:
-        # 已有会话则直接告知前端仍然有效
+        #  previous session exists, notify frontend that it's still active
         socketio.emit("realtime_session_active", {}, to=sid, namespace="/realtime")
         return
 
@@ -359,21 +358,21 @@ def launch_realtime_session(sid: str):
     socketio.start_background_task(runner)
 
 
-# ---------- Socket.IO: 初次物理连接时自动创建第一次会话 ----------
+# ---------- Socket.IO: create new session on connect automatically----------
 @socketio.on("connect", namespace="/realtime")
 def socket_connected():
     sid = request.sid
     launch_realtime_session(sid)
 
 
-# ---------- 显式重新初始化（Disconnect 后再次 Start） ----------
+# ---------- Display new session (After disconnect then Start） ----------
 @socketio.on("realtime_init", namespace="/realtime")
 def realtime_init():
     sid = request.sid
     launch_realtime_session(sid)
 
 
-# ---------- 客户端请求关闭当前实时会话 ----------
+# ---------- Client side disconnect ----------
 @socketio.on("disconnect_realtime", namespace="/realtime")
 def disconnect_realtime():
     sid = request.sid
@@ -382,18 +381,18 @@ def disconnect_realtime():
         loop = conn["loop"]
         q = conn["queue"]
         if loop and loop.is_running():
-            # 发送 None 终止 sender / 主循环
+            # send None terminate sender / main loop
             asyncio.run_coroutine_threadsafe(q.put(None), loop)
-    # 通知前端状态
+    # Notify frontend status
     socketio.emit("realtime_session_closed", {}, to=sid, namespace="/realtime")
 
 
-# ---------- 音频块（仍然要求当前 sid 有活动会话） ----------
+# --------- Audio chunk (still requires current sid to have an active session) ----------
 @socketio.on("audio_chunk", namespace="/realtime")
 def handle_audio_chunk(data):
     conn = realtime_connections.get(request.sid)
     if not conn:
-        # 没有活动会话，提示前端重新初始化
+        # No active realtime session, notify frontend to reinitialize
         socketio.emit(
             "realtime_error",
             {"error": {"message": "No active realtime session. Please start again."}},
@@ -436,7 +435,7 @@ def force_commit_turn():
         asyncio.run_coroutine_threadsafe(q.put(json.dumps(commit_evt)), loop)
 
 
-# ---------- OpenAI Realtime 后台协程 ----------
+# ---------- OpenAI Realtime background coroutine ----------
 async def openai_realtime(sid: str, queue: asyncio.Queue):
     uri = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview"
     headers = {
@@ -450,7 +449,7 @@ async def openai_realtime(sid: str, queue: asyncio.Queue):
     )
 
     async with websockets.connect(uri, **{kwarg: headers}) as ws:
-        # 等待 session.created
+        # Wait for session.created
         while True:
             msg = await ws.recv()
             try:
@@ -460,7 +459,7 @@ async def openai_realtime(sid: str, queue: asyncio.Queue):
             if parsed.get("type") == "session.created":
                 break
 
-        # 发送 session.update（开启 server_vad）
+        # Send session.update (enable server_vad)
         await ws.send(json.dumps({
             "type": "session.update",
             "session": {
@@ -480,7 +479,7 @@ async def openai_realtime(sid: str, queue: asyncio.Queue):
             }
         }))
 
-        # 发送器
+        # Sender coroutine
         async def sender():
             while True:
                 item = await queue.get()
@@ -511,7 +510,7 @@ async def openai_realtime(sid: str, queue: asyncio.Queue):
                 etype = payload.get("type")
 
                 if etype == "session.updated":
-                    # 会话真正就绪
+                    # Session is now active
                     socketio.emit("realtime_session_active", {}, to=sid, namespace="/realtime")
 
                 elif etype == "input_audio_buffer.speech_started":
@@ -553,7 +552,7 @@ async def openai_realtime(sid: str, queue: asyncio.Queue):
                     socketio.emit("realtime_error", payload, to=sid, namespace="/realtime")
 
                 else:
-                    # 其它事件透传
+                    # Other events pass-through
                     socketio.emit("info", payload, to=sid, namespace="/realtime")
 
                 if etype and etype.startswith("response."):
@@ -562,7 +561,7 @@ async def openai_realtime(sid: str, queue: asyncio.Queue):
         finally:
             send_task.cancel()
             await ws.close()
-            # 如果还在映射里（可能客户端未调用 disconnect_realtime 就关闭了），清理并通知
+            # If still in mapping (client may not have called disconnect_realtime before closing), clean up and notify
             if sid in realtime_connections:
                 realtime_connections.pop(sid, None)
                 socketio.emit("realtime_session_closed", {}, to=sid, namespace="/realtime")

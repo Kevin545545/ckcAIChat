@@ -4,7 +4,8 @@
 {% block content %}
 <h2>Realtime Conversation</h2>
 
-<!-- 外部样式表 -->
+<!--  - ChatGPT O3 Model Generated Code - -->
+<!-- outline css -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/realtime.css') }}">
 
 <div class="mb-2">
@@ -21,7 +22,7 @@
 
 <audio id="audioOut" class="mt-3" controls style="max-width:420px;display:block;margin-top:10px;"></audio>
 
-<!-- 先加载 socket.io，再加载业务脚本 -->
+<!-- Load socket.io, then load business script -->
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script defer src="{{ url_for('static', filename='js/realtime.js') }}"></script>
 {% endblock %}
