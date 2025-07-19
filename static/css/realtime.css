@@ -1,0 +1,123 @@
+/* ---------- Color System (Light) ---------- */
+:root {
+  --color-bg: #f2f5fa;
+  --color-surface: #ffffff;
+  --color-border: #d9e2ec;
+  --color-text: #1e2933;
+  --color-text-soft: #506070;
+  --color-accent-h: 210;
+  --color-accent-s: 90%;
+  --color-accent-l: 55%;
+  --color-accent: hsl(var(--color-accent-h) var(--color-accent-s) var(--color-accent-l));
+  --color-accent-soft: hsl(var(--color-accent-h) var(--color-accent-s) 55% / 0.07);
+  --color-accent-border: hsl(var(--color-accent-h) var(--color-accent-s) 45% / 0.35);
+
+  /* Semantic placeholders (future use) */
+  --color-info: #2f6ebe;
+  --color-success: #2f8050;
+  --color-warning: #b97316;
+  --color-danger: #c23d3d;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.04), 0 2px 4px rgba(0,0,0,.06);
+
+  --assistant-max-width: 72ch;
+  --assistant-font-size: 15px;
+  --assistant-line-height: 1.4;
+}
+
+/* ---------- Dark Mode Overrides ---------- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #12181f;
+    --color-surface: #1c2530;
+    --color-border: #314150;
+    --color-text: #eef3f7;
+    --color-text-soft: #9dacb8;
+    --color-accent-l: 64%;
+    --color-accent-soft: hsl(var(--color-accent-h) var(--color-accent-s) 65% / 0.14);
+    --color-accent-border: hsl(var(--color-accent-h) var(--color-accent-s) 55% / 0.55);
+    --shadow-sm: 0 2px 4px rgba(0,0,0,.4), 0 4px 12px rgba(0,0,0,.35);
+  }
+}
+
+/* ---------- Page Base ---------- */
+body {
+  background: var(--color-bg);
+}
+
+#assistantLine {
+  position: relative;
+  box-sizing: border-box;
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent-border);
+  border-left: 4px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 12px 16px 14px 16px;
+  margin: 8px 0 10px 0;
+  max-width: var(--assistant-max-width);
+  font-size: var(--assistant-font-size);
+  line-height: var(--assistant-line-height);
+  color: var(--color-text);
+  backdrop-filter: blur(2px);
+  animation: fadeIn .35s ease;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  transition: background .25s ease, border-color .25s ease;
+}
+
+#assistantLine:is(:hover, :focus-visible) {
+  background: hsl(var(--color-accent-h) var(--color-accent-s) 55% / 0.11);
+}
+
+#assistantLine:empty {
+  display: none;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Log area */
+#transcript {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  max-width: 78ch;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--color-text-soft);
+  overflow-y: auto;
+  max-height: 42vh;
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(2px);
+}
+
+/* Highlight user transcript lines */
+#transcript .user-line {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+/* Inline accent for keywords (future) */
+.emph {
+  background: linear-gradient(to right, var(--color-accent-soft), transparent 80%);
+  padding: 0 2px;
+  border-radius: 3px;
+}
+
+/* Buttons consistency */
+button.btn {
+  transition: background .2s ease, color .2s ease, box-shadow .2s ease;
+}
+button.btn-primary {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+button.btn-primary:hover {
+  filter: brightness(1.07);
+}
