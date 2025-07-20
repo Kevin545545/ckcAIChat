@@ -2,7 +2,7 @@
 
 ### Video Demo
 
-*(Add a link or embed GIF once recorded, e.g. `https://.../demo.mp4`)*
+*`https://youtu.be/QCSga73aqiU`*
 
 ## Getting Started
 
