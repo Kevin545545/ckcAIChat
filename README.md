@@ -2,7 +2,7 @@
 
 ### Video Demo
 
-*`https://youtu.be/QCSga73aqiU`*
+**[ckcAIChat](https://youtu.be/QCSga73aqiU)**
 
 ## Getting Started
 
